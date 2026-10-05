@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MelodyPresence</RootNamespace>
+    <AssemblyName>MelodyPresence</AssemblyName>
+    <Company>Impact Entreprises</Company>
+    <Product>Melody Présence</Product>
+    <Version>1.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="QuestPDF" Version="2024.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="..\ZktecoPullWorker\**\*" />
+    <None Include="..\ZktecoPullWorker\**\*" />
+  </ItemGroup>
+
+  <Target Name="BuildZktecoPullWorker" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\ZktecoPullWorker\ZktecoPullWorker.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
+  </Target>
+
+  <Target Name="CopyZktecoPullWorker" AfterTargets="CopyFilesToOutputDirectory">
+    <PropertyGroup>
+      <_ZkWorkerBin>$(MSBuildProjectDirectory)\..\ZktecoPullWorker\bin\$(Configuration)\net48\</_ZkWorkerBin>
+      <_ZkWorkerDest>$(OutputPath)ZktecoPullWorker\</_ZkWorkerDest>
+    </PropertyGroup>
+    <MakeDir Directories="$(_ZkWorkerDest)" Condition="Exists('$(_ZkWorkerBin)ZktecoPullWorker.exe')" />
+    <ItemGroup>
+      <_ZkWorkerFiles Include="$(_ZkWorkerBin)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ZkWorkerFiles)" DestinationFolder="$(_ZkWorkerDest)" SkipUnchangedFiles="true" Condition="Exists('$(_ZkWorkerBin)ZktecoPullWorker.exe')" />
+  </Target>
+
+</Project>
