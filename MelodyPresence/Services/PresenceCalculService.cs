@@ -1,11 +1,28 @@
+using System.Globalization;
 using MelodyPresence.Models;
 
 namespace MelodyPresence.Services;
 
 public static class PresenceCalculService
 {
-    public static JourPresenceLigne CalculerJour(Employe employe, IEnumerable<Pointage> pointagesDuJour, DateTime date)
+    public static readonly TimeSpan HeureDebutDefaut = new(7, 30, 0);
+    public static readonly TimeSpan HeureLimiteDefaut = new(7, 40, 0);
+    public static readonly TimeSpan HeureFinDefaut = new(17, 0, 0);
+
+    public static string FormatHhMm(TimeSpan t) => t.ToString(@"hh\:mm");
+
+    public static JourPresenceLigne CalculerJour(
+        Employe employe,
+        IEnumerable<Pointage> pointagesDuJour,
+        DateTime date,
+        TimeSpan? heureDebut = null,
+        TimeSpan? heureLimite = null)
     {
+        var debut = heureDebut ?? HeureDebutDefaut;
+        var limite = heureLimite ?? HeureLimiteDefaut;
+        if (limite < debut)
+            limite = debut;
+
         var liste = pointagesDuJour
             .Where(p => p.EmployeId == employe.Id && p.Horodatage.Date == date.Date)
             .OrderBy(p => p.Horodatage)
@@ -17,7 +34,33 @@ public static class PresenceCalculService
         if (premiere.HasValue && derniere.HasValue && derniere > premiere)
             heures = Math.Round((derniere.Value - premiere.Value).TotalHours, 2);
 
-        var statut = liste.Count == 0 ? "Absent" : (derniere.HasValue ? "Présent" : "En cours");
+        var estRetard = false;
+        var minutesRetard = 0;
+        if (premiere.HasValue)
+        {
+            var heureArrivee = premiere.Value.TimeOfDay;
+            if (heureArrivee > limite)
+            {
+                estRetard = true;
+                minutesRetard = (int)Math.Ceiling((heureArrivee - debut).TotalMinutes);
+            }
+        }
+
+        string statut;
+        if (liste.Count == 0)
+        {
+            // Avant la tolérance du jour courant : "Non pointé" (pas encore Absent).
+            if (date.Date == DateTime.Today && DateTime.Now.TimeOfDay < limite)
+                statut = "Non pointé";
+            else
+                statut = "Absent";
+        }
+        else if (estRetard)
+            statut = "Retard";
+        else if (derniere.HasValue)
+            statut = "Parti";
+        else
+            statut = "En cours";
 
         return new JourPresenceLigne
         {
@@ -29,6 +72,8 @@ public static class PresenceCalculService
             DerniereSortie = derniere,
             Heures = heures,
             Statut = statut,
+            EstEnRetard = estRetard,
+            MinutesRetard = minutesRetard,
             NbPointages = liste.Count
         };
     }
@@ -36,18 +81,22 @@ public static class PresenceCalculService
     public static IReadOnlyList<JourPresenceLigne> CalculerJourPourTous(
         IEnumerable<Employe> employes,
         IEnumerable<Pointage> pointages,
-        DateTime date)
+        DateTime date,
+        TimeSpan? heureDebut = null,
+        TimeSpan? heureLimite = null)
     {
         var actifs = employes.Where(e => e.Actif).OrderBy(e => e.Nom).ThenBy(e => e.Prenom).ToList();
         var pts = pointages.Where(p => p.Horodatage.Date == date.Date).ToList();
-        return actifs.Select(e => CalculerJour(e, pts, date)).ToList();
+        return actifs.Select(e => CalculerJour(e, pts, date, heureDebut, heureLimite)).ToList();
     }
 
     public static IReadOnlyList<JourPresenceLigne> CalculerMois(
         IEnumerable<Employe> employes,
         IEnumerable<Pointage> pointages,
         int annee,
-        int mois)
+        int mois,
+        TimeSpan? heureDebut = null,
+        TimeSpan? heureLimite = null)
     {
         var debut = new DateTime(annee, mois, 1);
         var fin = debut.AddMonths(1);
@@ -59,19 +108,21 @@ public static class PresenceCalculService
         {
             if (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
                 continue;
-            result.AddRange(CalculerJourPourTous(actifs, pts, d));
+            result.AddRange(CalculerJourPourTous(actifs, pts, d, heureDebut, heureLimite));
         }
 
         return result;
     }
 
-    public static IReadOnlyList<(Employe Employe, int JoursPresents, double HeuresTotales, int Absences)> ResumeMensuel(
+    public static IReadOnlyList<(Employe Employe, int JoursPresents, double HeuresTotales, int Absences, int Retards)> ResumeMensuel(
         IEnumerable<Employe> employes,
         IEnumerable<Pointage> pointages,
         int annee,
-        int mois)
+        int mois,
+        TimeSpan? heureDebut = null,
+        TimeSpan? heureLimite = null)
     {
-        var lignes = CalculerMois(employes, pointages, annee, mois);
+        var lignes = CalculerMois(employes, pointages, annee, mois, heureDebut, heureLimite);
         return lignes
             .GroupBy(l => l.EmployeId)
             .Select(g =>
@@ -85,12 +136,42 @@ public static class PresenceCalculService
                 };
                 return (
                     emp,
-                    g.Count(x => x.Statut is "Présent" or "En cours"),
+                    g.Count(x => x.Statut is "Présent" or "Parti" or "En cours" or "Retard"),
                     Math.Round(g.Sum(x => x.Heures), 2),
-                    g.Count(x => x.Statut == "Absent")
+                    g.Count(x => x.Statut is "Absent" or "Non pointé"),
+                    g.Count(x => x.EstEnRetard)
                 );
             })
             .OrderBy(x => x.emp.Nom)
             .ToList();
+    }
+
+    public static TimeSpan ParserHeure(string? texte, TimeSpan defaut)
+    {
+        if (string.IsNullOrWhiteSpace(texte))
+            return defaut;
+        if (TimeSpan.TryParseExact(texte.Trim(), @"hh\:mm", CultureInfo.InvariantCulture, out var t))
+            return t;
+        if (TimeSpan.TryParseExact(texte.Trim(), @"h\:mm", CultureInfo.InvariantCulture, out t))
+            return t;
+        if (TimeSpan.TryParse(texte.Trim(), CultureInfo.InvariantCulture, out t))
+            return t;
+        return defaut;
+    }
+
+    public static (TimeSpan Debut, TimeSpan Limite) LireHoraires(ParametresApplication? p)
+    {
+        var debut = ParserHeure(p?.HeureDebutTravail, HeureDebutDefaut);
+        var limite = ParserHeure(p?.HeureLimiteTolerance, HeureLimiteDefaut);
+        if (limite < debut)
+            limite = debut;
+        return (debut, limite);
+    }
+
+    public static TimeSpan LireHeureFin(ParametresApplication? p)
+    {
+        var (debut, _) = LireHoraires(p);
+        var fin = ParserHeure(p?.HeureFinTravail, HeureFinDefaut);
+        return fin < debut ? debut : fin;
     }
 }

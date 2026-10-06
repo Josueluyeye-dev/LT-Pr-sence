@@ -8,3 +8,8 @@ obj/
 _publish/
 publish/
 *.log
+_tmp_export/
+_fix_*.py
+lt_services_employes.csv
+*.bak*
+MelodyPresence/Assets/_gen_*.py

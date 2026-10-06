@@ -14,7 +14,7 @@ public static class ZktecoSynchronisationService
     private static readonly SemaphoreSlim SyncLock = new(1, 1);
     private static int _syncEnCours;
 
-    public static event Action<DateTime>? SynchroReussie;
+    public static event Action<DateTime, int>? SynchroReussie;
     public static event Action? SynchroEnCours;
     public static event Action<string>? SynchroErreur;
 
@@ -102,7 +102,7 @@ public static class ZktecoSynchronisationService
             nbNouveaux = new PointageService().FusionnerDepuisTerminal(logs);
             p.ZkDerniereSyncUtc = DateTime.UtcNow;
             db.SaveChanges();
-            SynchroReussie?.Invoke(p.ZkDerniereSyncUtc.Value);
+            SynchroReussie?.Invoke(p.ZkDerniereSyncUtc.Value, nbNouveaux);
             return true;
         }
         catch (Exception ex)

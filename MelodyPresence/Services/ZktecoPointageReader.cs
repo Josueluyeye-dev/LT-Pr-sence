@@ -19,7 +19,7 @@ public static class ZktecoPointageReader
     {
         var exePath = ResoudreCheminExeWorker()
             ?? throw new FileNotFoundException(
-                "ZktecoPullWorker.exe introuvable. Recompilez la solution Melody Présence.");
+                "ZktecoPullWorker.exe introuvable. Recompilez la solution LT Services Présence.");
 
         VerifierPortTcp(ip.Trim(), port);
 

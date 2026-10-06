@@ -1,203 +1,2769 @@
 ﻿<Window x:Class="MelodyPresence.MainWindow"
+
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
         xmlns:vm="clr-namespace:MelodyPresence.ViewModels"
-        Title="Melody Présence"
-        Height="720" Width="1100"
-        MinHeight="600" MinWidth="900"
+
+        Title="LT Services — Présence"
+
+        Icon="pack://application:,,,/Assets/lt_services.ico"
+
+        Height="860" Width="1440"
+
+        MinHeight="700" MinWidth="1200"
+
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC">
+
+        WindowStyle="SingleBorderWindow"
+
+        ResizeMode="CanResize"
+
+        Background="#FFB8BEC8"
+
+        FontFamily="Segoe UI, Segoe UI Variable Display"
+
+        Loaded="Window_Loaded">
+
     <Window.DataContext>
+
         <vm:MainViewModel/>
+
     </Window.DataContext>
 
-    <DockPanel>
-        <Border DockPanel.Dock="Bottom" Background="#134E4A" Padding="12,8">
-            <TextBlock Text="{Binding StatutBarre}" Foreground="White" FontSize="12"/>
-        </Border>
 
-        <Border DockPanel.Dock="Left" Width="200" Background="#CCFBF1">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Margin="16,24,16,16">
-                    <TextBlock Text="Melody" FontSize="22" FontWeight="Bold" Foreground="#134E4A"/>
-                    <TextBlock Text="Présence" FontSize="18" Foreground="#0F766E" Margin="0,0,0,16"/>
-                    <Button Style="{StaticResource NavButton}" Content="Accueil" Command="{Binding NaviguerCommand}" CommandParameter="Accueil"/>
-                    <Button Style="{StaticResource NavButton}" Content="Employés" Command="{Binding NaviguerCommand}" CommandParameter="Employés"/>
-                    <Button Style="{StaticResource NavButton}" Content="Présence du jour" Command="{Binding NaviguerCommand}" CommandParameter="Présence"/>
-                    <Button Style="{StaticResource NavButton}" Content="Rapports" Command="{Binding NaviguerCommand}" CommandParameter="Rapports"/>
-                    <Button Style="{StaticResource NavButton}" Content="Paramètres" Command="{Binding NaviguerCommand}" CommandParameter="Paramètres"/>
-                </StackPanel>
-                <TextBlock DockPanel.Dock="Bottom" Margin="16" FontSize="11" Foreground="#5EEAD4"
-                           Text="V1.0.0 — modules à venir"/>
-            </DockPanel>
-        </Border>
 
-        <Grid Margin="24">
-            <!-- Accueil -->
-            <ScrollViewer Visibility="{Binding EstAccueil, Converter={StaticResource BoolToVis}}">
-                <StackPanel>
-                    <TextBlock Text="Tableau de bord" FontSize="24" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,16"/>
-                    <UniformGrid Columns="4" Margin="0,0,0,20">
-                        <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,12,0" BorderBrush="#E2E8F0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Employés actifs" Foreground="#64748B"/>
-                                <TextBlock Text="{Binding CompteurEmployesActifs}" FontSize="28" FontWeight="Bold" Foreground="#0F766E"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,12,0" BorderBrush="#E2E8F0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Présents" Foreground="#64748B"/>
-                                <TextBlock Text="{Binding CompteurPresents}" FontSize="28" FontWeight="Bold" Foreground="#16A34A"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,12,0" BorderBrush="#E2E8F0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="En cours" Foreground="#64748B"/>
-                                <TextBlock Text="{Binding CompteurEnCours}" FontSize="28" FontWeight="Bold" Foreground="#D97706"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="White" CornerRadius="12" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Absents" Foreground="#64748B"/>
-                                <TextBlock Text="{Binding CompteurAbsents}" FontSize="28" FontWeight="Bold" Foreground="#DC2626"/>
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-                    <DockPanel Margin="0,0,0,12">
-                        <Button DockPanel.Dock="Right" Content="Synchroniser pointeuse" Command="{Binding SynchroniserZkCommand}"/>
-                        <TextBlock Text="Derniers pointages" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </DockPanel>
-                    <DataGrid ItemsSource="{Binding PointagesRecents}" Height="320">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Heure" Binding="{Binding Horodatage, StringFormat=dd/MM HH:mm:ss}" Width="120"/>
-                            <DataGridTextColumn Header="Employé" Binding="{Binding Employe.NomComplet}" Width="*"/>
-                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="80"/>
-                            <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </StackPanel>
-            </ScrollViewer>
+    <Window.Resources>
 
-            <!-- Employés -->
-            <Grid Visibility="{Binding EstEmployes, Converter={StaticResource BoolToVis}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="320"/>
-                </Grid.ColumnDefinitions>
-                <DockPanel Grid.Column="0" Margin="0,0,16,0">
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                        <Button DockPanel.Dock="Right" Content="Nouveau" Command="{Binding NouvelEmployeCommand}"/>
-                        <Button DockPanel.Dock="Right" Content="Modifier" Command="{Binding EditerEmployeCommand}"/>
-                        <Button DockPanel.Dock="Right" Content="Supprimer" Command="{Binding SupprimerEmployeCommand}" Background="#B91C1C"/>
-                        <TextBox Width="220" Text="{Binding FiltreEmploye, UpdateSourceTrigger=PropertyChanged}"
-                                 Tag="Rechercher…" VerticalAlignment="Center"/>
-                    </DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Employés" FontSize="24" FontWeight="Bold" Margin="0,0,0,12"/>
-                    <DataGrid ItemsSource="{Binding Employes}" SelectedItem="{Binding EmployeSelectionne}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="100"/>
-                            <DataGridTextColumn Header="Nom" Binding="{Binding Nom}" Width="*"/>
-                            <DataGridTextColumn Header="Prénom" Binding="{Binding Prenom}" Width="120"/>
-                            <DataGridTextColumn Header="PIN ZK" Binding="{Binding CodePinZk}" Width="80"/>
-                            <DataGridCheckBoxColumn Header="Actif" Binding="{Binding Actif}" Width="60"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DockPanel>
-                <Border Grid.Column="1" Background="White" CornerRadius="12" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1"
-                        Visibility="{Binding EmployeEdition, Converter={StaticResource NullToVis}}">
-                    <StackPanel>
-                        <TextBlock Text="Fiche employé" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
-                        <TextBlock Text="Matricule"/>
-                        <TextBox Text="{Binding EmployeEdition.Matricule, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBlock Text="Nom"/>
-                        <TextBox Text="{Binding EmployeEdition.Nom, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBlock Text="Prénom"/>
-                        <TextBox Text="{Binding EmployeEdition.Prenom, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBlock Text="Code PIN pointeuse"/>
-                        <TextBox Text="{Binding EmployeEdition.CodePinZk, UpdateSourceTrigger=PropertyChanged}"/>
-                        <CheckBox Content="Actif" IsChecked="{Binding EmployeEdition.Actif}" Margin="0,8"/>
-                        <Button Content="Enregistrer" Command="{Binding SauverEmployeCommand}" Margin="0,16,0,0"/>
+        <Style x:Key="NavRow" TargetType="StackPanel">
+
+            <Setter Property="Orientation" Value="Horizontal"/>
+
+        </Style>
+
+    </Window.Resources>
+
+
+
+    <Grid Background="#FFB8BEC8">
+
+        <Grid>
+
+            <Grid.ColumnDefinitions>
+
+                <ColumnDefinition Width="228"/>
+
+                <ColumnDefinition Width="*"/>
+
+            </Grid.ColumnDefinitions>
+
+
+
+            <!-- Sidebar — fond blanc (comme avant) -->
+
+            <Border Grid.Column="0"
+
+                    Background="White"
+
+                    BorderBrush="{StaticResource BrushStroke}"
+
+                    BorderThickness="0,0,1,0"
+
+                    Padding="16,20,16,14">
+
+                <DockPanel>
+
+                    <StackPanel DockPanel.Dock="Top">
+
+                        <StackPanel Margin="2,0,0,22">
+
+                            <Border Background="White" CornerRadius="12" Padding="10,10"
+
+                                    BorderBrush="#33E30613" BorderThickness="1">
+
+                                <StackPanel>
+
+                                    <Image Source="pack://application:,,,/Assets/lt_services_brand.jpg"
+
+                                           Height="48" Stretch="Uniform"
+
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+
+                                           HorizontalAlignment="Center"/>
+
+                                    <TextBlock Text="Présence" FontSize="12" FontWeight="Bold"
+
+                                               Foreground="#FFE30613" Margin="0,8,0,0"
+
+                                               HorizontalAlignment="Center"/>
+
+                                    <TextBlock Text="vous êtes dans de bonnes mains"
+
+                                               FontSize="9" FontStyle="Italic"
+
+                                               Foreground="#FF111827" FontWeight="Bold" Margin="0,2,0,0"
+
+                                               HorizontalAlignment="Center" TextWrapping="Wrap"
+
+                                               TextAlignment="Center"/>
+
+                                </StackPanel>
+
+                            </Border>
+
+                        </StackPanel>
+
+
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
+                                     IsChecked="{Binding EstAccueil, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Accueil">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE80F;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Accueil" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
+                                     IsChecked="{Binding EstEmployes, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Employés">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE716;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Employés" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
+                                     IsChecked="{Binding EstPresence, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Présence">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE8D7;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Présence" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
+                                     IsChecked="{Binding EstRapports, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Rapports">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE9D9;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Rapports" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
+                                     IsChecked="{Binding EstParametres, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Paramètres">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE713;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Paramètres" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
                     </StackPanel>
-                </Border>
+
+
+
+                    <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Margin="2,0,2,0">
+
+                        <Border Style="{StaticResource MessageBanner}" Margin="0,0,0,10" Cursor="Hand">
+
+                            <Border.InputBindings>
+
+                                <MouseBinding Gesture="LeftClick" Command="{Binding ConfigurerTerminalCommand}"/>
+
+                            </Border.InputBindings>
+
+                            <DockPanel>
+
+                                <Border DockPanel.Dock="Left" Width="34" Height="34" CornerRadius="9"
+
+                                        Background="#33FFFFFF" Margin="0,0,10,0">
+
+                                    <Grid>
+
+                                        <TextBlock Text="&#xE770;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+
+                                                   Foreground="White"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        <Ellipse Width="8" Height="8" Fill="{Binding TerminalCarteBrush}"
+
+                                                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,2,0"/>
+
+                                    </Grid>
+
+                                </Border>
+
+                                <StackPanel VerticalAlignment="Center">
+
+                                    <TextBlock Text="{Binding TerminalCarteTitre}" FontSize="12" FontWeight="SemiBold"
+
+                                               Foreground="White" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{Binding TerminalCarteDetail}" FontSize="11"
+
+                                               Foreground="White" FontWeight="Bold" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="4,0,0,2">
+
+                            <Border Width="36" Height="36" CornerRadius="18" Background="#22E30613" Margin="0,0,10,0">
+
+                                <TextBlock Text="{Binding InitialesUtilisateur}" FontSize="12" FontWeight="Bold"
+
+                                           Foreground="{StaticResource BrushAccent}"
+
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            </Border>
+
+                            <StackPanel VerticalAlignment="Center">
+
+                                <TextBlock Text="{Binding NomUtilisateurAffiche}" FontSize="12" FontWeight="SemiBold"
+
+                                           Foreground="{StaticResource BrushText}"/>
+
+                                <TextBlock Text="{Binding RoleUtilisateurAffiche}" FontSize="11"
+
+                                           Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                            </StackPanel>
+
+                        </StackPanel>
+
+                    </StackPanel>
+
+                </DockPanel>
+
+            </Border>
+
+
+
+            <!-- Content — fond gris franc -->
+
+            <Border Grid.Column="1" Background="#FFB8BEC8" Margin="0">
+
+            <Grid x:Name="ContentHost" Opacity="0" Margin="18,14,18,12" Background="#FFB8BEC8">
+
+                <!-- Accueil / Dashboard mockup -->
+
+                <Grid Visibility="{Binding EstAccueil, Converter={StaticResource BoolToVis}}" Margin="0">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="*"/>
+
+                        <ColumnDefinition Width="268"/>
+
+                    </Grid.ColumnDefinitions>
+
+
+
+                    <!-- Colonne principale -->
+
+                    <Grid Grid.Column="0" Margin="0,0,14,0">
+
+                        <Grid.RowDefinitions>
+
+                            <RowDefinition Height="Auto"/>
+
+                            <RowDefinition Height="Auto"/>
+
+                            <RowDefinition Height="Auto"/>
+
+                            <RowDefinition Height="*"/>
+
+                            <RowDefinition Height="Auto"/>
+
+                        </Grid.RowDefinitions>
+
+
+
+                        <!-- Header -->
+
+                        <Grid Grid.Row="0" Margin="0,0,0,14">
+
+                            <Grid.ColumnDefinitions>
+
+                                <ColumnDefinition Width="*"/>
+
+                                <ColumnDefinition Width="Auto"/>
+
+                                <ColumnDefinition Width="Auto"/>
+
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+
+                                <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                <TextBlock Text="Vue du jour — présence en un coup d’œil" FontSize="13" FontWeight="SemiBold"
+
+                                           Foreground="{StaticResource BrushTextSecondary}" Margin="0,4,0,0"/>
+
+                            </StackPanel>
+
+
+
+                            <Border Grid.Column="1" Background="{StaticResource BrushBgStatCard}" CornerRadius="10" Padding="6,4" Margin="12,0"
+
+                                    BorderBrush="{StaticResource BrushStrokeStrong}" BorderThickness="1" VerticalAlignment="Center">
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <Button Style="{StaticResource QuietButton}" Content="‹" FontSize="16" Padding="10,4" Margin="0"
+
+                                            Foreground="{StaticResource BrushTextSecondary}"
+
+                                            Command="{Binding JourPrecedentCommand}" ToolTip="Jour précédent"/>
+
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE787;" Foreground="{StaticResource BrushAccent}"
+
+                                                   FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                        <TextBlock Text="{Binding DatePresenceHeader}" FontSize="13" FontWeight="SemiBold"
+
+                                                   Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                    </StackPanel>
+
+                                    <Button Style="{StaticResource QuietButton}" Content="›" FontSize="16" Padding="10,4" Margin="0"
+
+                                            Foreground="{StaticResource BrushTextSecondary}"
+
+                                            Command="{Binding JourSuivantCommand}" ToolTip="Jour suivant"/>
+
+                                </StackPanel>
+
+                            </Border>
+
+
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+
+                                <Button Style="{StaticResource GhostButton}" Content="Exporter ?" Margin="0,0,8,0"
+
+                                        Background="{StaticResource BrushBgStatCard}" BorderBrush="{StaticResource BrushStrokeStrong}"
+
+                                        Click="ExporterPresence_Click"/>
+
+                                <Button Command="{Binding SynchroniserZkCommand}" Margin="0" Padding="16,10">
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE895;" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                        <TextBlock Text="Synchroniser"/>
+
+                                    </StackPanel>
+
+                                </Button>
+
+                            </StackPanel>
+
+                        </Grid>
+
+
+
+                        <!-- KPI -->
+
+                        <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,12">
+
+                            <Border Style="{StaticResource StatCard}" Margin="0,0,10,0" MinHeight="108" Padding="14">
+
+                                <Grid>
+
+                                    <Path Data="M8,48 L22,40 34,44 48,28 62,34 78,18" Stroke="#99E30613" StrokeThickness="2.5"
+
+                                          Stretch="Fill" Height="28" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="10" Background="#44E30613">
+
+                                            <TextBlock Text="&#xE716;" FontFamily="Segoe MDL2 Assets" Foreground="#FFFF4D57" FontSize="16"
+
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        </Border>
+
+                                        <StackPanel>
+
+                                            <TextBlock Text="EFFECTIF" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextSecondary}"/>
+
+                                            <TextBlock Text="{Binding CompteurEmployesActifs}" FontSize="32" FontWeight="Bold"
+
+                                                       Foreground="{StaticResource BrushText}" Margin="0,6,0,0"/>
+
+                                            <TextBlock Text="{Binding CompteurEffectifContexte}" FontSize="12" FontWeight="SemiBold"
+
+                                                       Foreground="{StaticResource BrushTextSecondary}"/>
+
+                                        </StackPanel>
+
+                                    </DockPanel>
+
+                                </Grid>
+
+                            </Border>
+
+                            <Border Style="{StaticResource StatCard}" Margin="0,0,10,0" MinHeight="108" Padding="14" Cursor="Hand">
+
+                                <Border.InputBindings>
+
+                                    <MouseBinding Gesture="LeftClick" Command="{Binding OuvrirPresenceFiltreCommand}" CommandParameter="PrésentsAuto"/>
+
+                                </Border.InputBindings>
+
+                                <Grid>
+
+                                    <Path Data="M8,42 L24,36 38,38 52,24 68,28 82,14" Stroke="#6635D39A" StrokeThickness="2.5"
+
+                                          Stretch="Fill" Height="28" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="10" Background="#2235D39A">
+
+                                            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushSuccess}" FontSize="16"
+
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        </Border>
+
+                                        <StackPanel>
+
+                                            <TextBlock Text="PRÉSENTS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextSecondary}"/>
+
+                                            <TextBlock Text="{Binding CompteurPresents}" FontSize="32" FontWeight="Bold"
+
+                                                       Foreground="{StaticResource BrushText}" Margin="0,6,0,0"/>
+
+                                            <TextBlock Text="{Binding CompteurPresentsContexte}" FontSize="12" FontWeight="SemiBold"
+
+                                                       Foreground="{StaticResource BrushSuccess}"/>
+
+                                        </StackPanel>
+
+                                    </DockPanel>
+
+                                </Grid>
+
+                            </Border>
+
+                            <Border Style="{StaticResource StatCard}" Margin="0,0,10,0" MinHeight="108" Padding="14" Cursor="Hand">
+
+                                <Border.InputBindings>
+
+                                    <MouseBinding Gesture="LeftClick" Command="{Binding OuvrirPresenceFiltreCommand}" CommandParameter="RetardsAuto"/>
+
+                                </Border.InputBindings>
+
+                                <Grid>
+
+                                    <Path Data="M8,30 L26,34 40,22 56,36 70,28 84,40" Stroke="#66FFC233" StrokeThickness="2.5"
+
+                                          Stretch="Fill" Height="28" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="10" Background="#22FFC233">
+
+                                            <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushWarning}" FontSize="16"
+
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        </Border>
+
+                                        <StackPanel>
+
+                                            <TextBlock Text="RETARDS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextSecondary}"/>
+
+                                            <TextBlock Text="{Binding CompteurRetards}" FontSize="32" FontWeight="Bold"
+
+                                                       Foreground="{StaticResource BrushText}" Margin="0,6,0,0"/>
+
+                                            <TextBlock Text="{Binding CompteurRetardsContexte}" FontSize="12" FontWeight="SemiBold"
+
+                                                       Foreground="{StaticResource BrushWarning}"/>
+
+                                        </StackPanel>
+
+                                    </DockPanel>
+
+                                </Grid>
+
+                            </Border>
+
+                            <Border Style="{StaticResource StatCard}" Margin="0" MinHeight="108" Padding="14" Cursor="Hand">
+
+                                <Border.InputBindings>
+
+                                    <MouseBinding Gesture="LeftClick" Command="{Binding OuvrirPresenceFiltreCommand}" CommandParameter="AbsentsAuto"/>
+
+                                </Border.InputBindings>
+
+                                <Grid>
+
+                                    <Path Data="M8,18 L24,28 40,22 56,40 72,34 86,48" Stroke="#66FF6B72" StrokeThickness="2.5"
+
+                                          Stretch="Fill" Height="28" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Right" Width="36" Height="36" CornerRadius="10" Background="#22FF6B72">
+
+                                            <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushDanger}" FontSize="16"
+
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        </Border>
+
+                                        <StackPanel>
+
+                                            <TextBlock Text="{Binding LabelAbsentsOuNonPointes}" FontSize="11" FontWeight="Bold"
+
+                                                       Foreground="{StaticResource BrushTextSecondary}"/>
+
+                                            <TextBlock Text="{Binding CompteurAbsentsOuNonPointes}" FontSize="32" FontWeight="Bold"
+
+                                                       Foreground="{StaticResource BrushText}" Margin="0,6,0,0"/>
+
+                                            <TextBlock Text="{Binding CompteurAbsentsContexte}" FontSize="12" FontWeight="SemiBold"
+
+                                                       Foreground="{StaticResource BrushDanger}"/>
+
+                                        </StackPanel>
+
+                                    </DockPanel>
+
+                                </Grid>
+
+                            </Border>
+
+                        </UniformGrid>
+
+
+
+                        <!-- Présence aujourd'hui — dégradé rouge ? noir + progression réelle -->
+
+                        <Border Grid.Row="2" Margin="0,0,0,12" Padding="18" CornerRadius="16"
+
+                                BorderBrush="#66FFFFFF" BorderThickness="1">
+
+                            <Border.Background>
+
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+
+                                    <GradientStop Color="#FFE30613" Offset="0"/>
+
+                                    <GradientStop Color="#FF8B0000" Offset="0.45"/>
+
+                                    <GradientStop Color="#FF0A0A0A" Offset="1"/>
+
+                                </LinearGradientBrush>
+
+                            </Border.Background>
+
+                            <Grid>
+
+                                <Grid.ColumnDefinitions>
+
+                                    <ColumnDefinition Width="130"/>
+
+                                    <ColumnDefinition Width="*"/>
+
+                                </Grid.ColumnDefinitions>
+
+                                <Grid.RowDefinitions>
+
+                                    <RowDefinition Height="Auto"/>
+
+                                    <RowDefinition Height="Auto"/>
+
+                                    <RowDefinition Height="Auto"/>
+
+                                </Grid.RowDefinitions>
+
+
+
+                                <DockPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,12">
+
+                                    <Border DockPanel.Dock="Right" Background="#33FFFFFF" CornerRadius="8" Padding="10,6">
+
+                                        <TextBlock Text="{Binding TimelineProgressLibelle}" FontSize="12" FontWeight="Bold"
+
+                                                   Foreground="White"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="Présence aujourd'hui" FontSize="15" FontWeight="SemiBold"
+
+                                               Foreground="White" VerticalAlignment="Center"/>
+
+                                </DockPanel>
+
+
+
+                                <!-- Donut -->
+
+                                <Grid Grid.Row="1" Grid.Column="0" Width="110" Height="110" Margin="0,0,12,8">
+
+                                    <Ellipse Width="96" Height="96" Stroke="#40FFFFFF" StrokeThickness="9"/>
+
+                                    <Ellipse Width="96" Height="96" Stroke="White" StrokeThickness="9"
+
+                                             StrokeDashArray="{Binding PresenceDonutDash}" StrokeDashCap="Round"
+
+                                             RenderTransformOrigin="0.5,0.5">
+
+                                        <Ellipse.RenderTransform>
+
+                                            <RotateTransform Angle="-90"/>
+
+                                        </Ellipse.RenderTransform>
+
+                                    </Ellipse>
+
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+
+                                        <TextBlock Text="{Binding PresenceAujourdhuiPourcentTexte}" FontSize="20" FontWeight="Bold"
+
+                                                   Foreground="White" HorizontalAlignment="Center"/>
+
+                                        <TextBlock Text="{Binding PresenceAujourdhuiRatio}" FontSize="11"
+
+                                                   Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                                    </StackPanel>
+
+                                </Grid>
+
+
+
+                                <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,8">
+
+                                    <TextBlock Text="{Binding PresenceAujourdhuiLibelle}" FontSize="14" FontWeight="SemiBold"
+
+                                               Foreground="White" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{Binding TimelineHorlogeLibelle}"
+
+                                               FontSize="12" Foreground="White" FontWeight="Bold" Margin="0,6,0,0"/>
+
+                                </StackPanel>
+
+
+
+                                <!-- Timeline progression réelle -->
+
+                                <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0">
+
+                                    <Grid.RowDefinitions>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Grid.Row="0" Height="12" Margin="0,0,0,10">
+
+                                        <Border Background="#33FFFFFF" CornerRadius="6"/>
+
+                                        <Grid>
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="{Binding TimelineProgressStar}"/>
+
+                                                <ColumnDefinition Width="{Binding TimelineResteStar}"/>
+
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border Grid.Column="0" CornerRadius="6" ClipToBounds="True">
+
+                                                <Border.Background>
+
+                                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+
+                                                        <GradientStop Color="#FFFF8A80" Offset="0"/>
+
+                                                        <GradientStop Color="#FFFFFFFF" Offset="1"/>
+
+                                                    </LinearGradientBrush>
+
+                                                </Border.Background>
+
+                                            </Border>
+
+                                            <!-- Curseur collé à la fin réelle du segment (sans décalage) -->
+
+                                            <Ellipse Grid.Column="0" Width="14" Height="14" Fill="White"
+
+                                                     HorizontalAlignment="Right" VerticalAlignment="Center"
+
+                                                     Stroke="#FFE30613" StrokeThickness="2">
+
+                                                <Ellipse.Style>
+
+                                                    <Style TargetType="Ellipse">
+
+                                                        <Setter Property="Visibility" Value="Visible"/>
+
+                                                        <Style.Triggers>
+
+                                                            <DataTrigger Binding="{Binding TimelineProgressPercent}" Value="0">
+
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+
+                                                            </DataTrigger>
+
+                                                        </Style.Triggers>
+
+                                                    </Style>
+
+                                                </Ellipse.Style>
+
+                                            </Ellipse>
+
+                                        </Grid>
+
+                                    </Grid>
+
+                                    <!-- Repères horaires proportionnels à la journée (pas d’espacement égal) -->
+
+                                    <Grid Grid.Row="1">
+
+                                        <Grid.ColumnDefinitions>
+
+                                            <ColumnDefinition Width="{Binding TimelineSegDebutPauseStar}"/>
+
+                                            <ColumnDefinition Width="{Binding TimelineSegPauseRepriseStar}"/>
+
+                                            <ColumnDefinition Width="{Binding TimelineSegRepriseFinStar}"/>
+
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" HorizontalAlignment="Left">
+
+                                            <TextBlock Text="{Binding HeureDebutTravail}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+
+                                            <TextBlock Text="Début" FontSize="11" Foreground="White" FontWeight="Bold"/>
+
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,-18,0">
+
+                                            <TextBlock Text="{Binding HeureDebutPause}" FontSize="12" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                            <TextBlock Text="Pause" FontSize="11" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="0,0,-22,0">
+
+                                            <TextBlock Text="{Binding HeureFinPause}" FontSize="12" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                            <TextBlock Text="Reprise" FontSize="11" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+
+                                            <TextBlock Text="{Binding HeureFinTravail}" FontSize="12" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Right"/>
+
+                                            <TextBlock Text="Fin" FontSize="11" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+
+                                        </StackPanel>
+
+                                    </Grid>
+
+                                </Grid>
+
+                            </Grid>
+
+                        </Border>
+
+
+
+                        <!-- Activité récente -->
+
+                        <Border Grid.Row="3" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,10">
+
+                            <DockPanel>
+
+                                <DockPanel DockPanel.Dock="Top" Margin="4,2,4,10">
+
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Content="Voir tout ?"
+
+                                            Command="{Binding NaviguerCommand}" CommandParameter="Présence" Margin="0" Padding="8,4"/>
+
+                                    <TextBlock Text="Activité récente" FontSize="15" FontWeight="SemiBold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                </DockPanel>
+
+
+
+                                <Border Style="{StaticResource MessageBanner}" Margin="8,16"
+
+                                        Visibility="{Binding ActiviteRecenteVide, Converter={StaticResource BoolToVis}}">
+
+                                    <StackPanel>
+
+                                        <TextBlock Text="Aucune activité récente" FontSize="14" FontWeight="SemiBold"
+
+                                                   Foreground="White" HorizontalAlignment="Center"/>
+
+                                        <TextBlock Text="Les nouveaux pointages apparaîtront ici."
+
+                                                   FontSize="12" Foreground="White" FontWeight="Bold" Margin="0,6,0,0"
+
+                                                   HorizontalAlignment="Center"/>
+
+                                    </StackPanel>
+
+                                </Border>
+
+
+
+                                <DataGrid ItemsSource="{Binding PointagesRecents}"
+
+                                          Visibility="{Binding ActiviteRecenteVide, Converter={StaticResource InvBoolToVis}}"
+
+                                          HeadersVisibility="Column" RowHeight="48" Margin="0"
+
+                                          VerticalScrollBarVisibility="Auto">
+
+                                    <DataGrid.Columns>
+
+                                        <DataGridTextColumn Header="Heure" Binding="{Binding Horodatage, StringFormat=HH:mm}" Width="70"/>
+
+                                        <DataGridTemplateColumn Header="Employé" Width="*">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                        <Border Width="30" Height="30" CornerRadius="15" Background="#14000000" Margin="0,0,10,0">
+
+                                                            <TextBlock Text="{Binding Employe.Initiales}" FontSize="10" FontWeight="Bold"
+
+                                                                       Foreground="{StaticResource BrushText}"
+
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                                        </Border>
+
+                                                        <StackPanel VerticalAlignment="Center">
+
+                                                            <TextBlock Text="{Binding Employe.NomComplet}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+
+                                                            <TextBlock Text="{Binding Employe.Matricule}" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                                        </StackPanel>
+
+                                                    </StackPanel>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Type" Width="90">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <Border CornerRadius="999" Padding="10,4" HorizontalAlignment="Left" Background="#22E30613">
+
+                                                        <TextBlock Text="{Binding TypeLibelle}" FontSize="11" FontWeight="SemiBold"
+
+                                                                   Foreground="{StaticResource BrushAccent}"/>
+
+                                                    </Border>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTextColumn Header="Source" Binding="{Binding SourceLibelle}" Width="90"/>
+
+                                    </DataGrid.Columns>
+
+                                </DataGrid>
+
+                            </DockPanel>
+
+                        </Border>
+
+
+
+                        <!-- Pied message -->
+
+                        <Border Grid.Row="4" Style="{StaticResource MessageBanner}" Padding="12,10" Margin="2,0,2,0">
+
+                            <DockPanel>
+
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE946;" Foreground="White"
+
+                                               FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="Système opérationnel" FontSize="11" Foreground="White" FontWeight="Bold" Margin="0,0,12,0"/>
+
+                                    <TextBlock Text="v1.0.0" FontSize="11" Foreground="White" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                    <Ellipse Width="8" Height="8" Fill="White" Margin="0,0,8,0"/>
+
+                                    <TextBlock Text="{Binding StatutBarreAffiche}" FontSize="12" Foreground="White" Margin="0,0,14,0"/>
+
+                                    <TextBlock Text="{Binding PiedSyncDetail}" FontSize="11" Foreground="White" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                    </Grid>
+
+
+
+                    <!-- Panneau droit -->
+
+                    <StackPanel Grid.Column="1">
+
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+
+                            <StackPanel>
+
+                                <DockPanel Margin="0,0,0,14">
+
+                                    <Border DockPanel.Dock="Right" Background="#22E30613" CornerRadius="999" Padding="10,4">
+
+                                        <TextBlock Text="{Binding JourneeBadge}" FontSize="11" FontWeight="Bold"
+
+                                                   Foreground="{StaticResource BrushAccent}"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="Statut de la journée" FontSize="13" FontWeight="SemiBold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                </DockPanel>
+
+
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+
+                                    <Border Width="44" Height="44" CornerRadius="12" Background="#22FFC233" Margin="0,0,12,0">
+
+                                        <TextBlock Text="&#xE706;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+
+                                                   Foreground="{StaticResource BrushWarning}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                    </Border>
+
+                                    <StackPanel VerticalAlignment="Center">
+
+                                        <TextBlock Text="{Binding HeureActuelle}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                        <TextBlock Text="{Binding DateCourteActuelle}" FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    </StackPanel>
+
+                                </StackPanel>
+
+
+
+                                <Border Height="1" Background="{StaticResource BrushStroke}" Margin="0,0,0,12"/>
+
+
+
+                                <Grid Margin="0,0,0,8">
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="Auto"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Heure de début" FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding HeureDebutTravail}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="Auto"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Heure de fin" FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding HeureFinTravail}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="Auto"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Temps écoulé" FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding TempsEcouleLibelle}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+
+                                </Grid>
+
+                                <Grid>
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="Auto"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Temps restant" FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding TempsRestantLibelle}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+
+                                </Grid>
+
+                            </StackPanel>
+
+                        </Border>
+
+
+
+                        <Border Style="{StaticResource Card}" Padding="16">
+
+                            <StackPanel>
+
+                                <TextBlock Text="Aperçu rapide" FontSize="13" FontWeight="SemiBold"
+
+                                           Foreground="{StaticResource BrushText}" Margin="0,0,0,14"/>
+
+
+
+                                <DockPanel Margin="0,0,0,12">
+
+                                    <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8" Background="#2235D39A" Margin="0,0,10,0">
+
+                                        <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushSuccess}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="{Binding CompteurPresents}" DockPanel.Dock="Right" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="Présents" Foreground="{StaticResource BrushText}" FontWeight="Bold" VerticalAlignment="Center" FontSize="13"/>
+
+                                </DockPanel>
+
+                                <DockPanel Margin="0,0,0,12">
+
+                                    <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8" Background="#22FFC233" Margin="0,0,10,0">
+
+                                        <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushWarning}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="{Binding CompteurRetards}" DockPanel.Dock="Right" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="Retards" Foreground="{StaticResource BrushText}" FontWeight="Bold" VerticalAlignment="Center" FontSize="13"/>
+
+                                </DockPanel>
+
+                                <DockPanel Margin="0,0,0,12">
+
+                                    <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8" Background="#22FF6B72" Margin="0,0,10,0">
+
+                                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushDanger}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="{Binding CompteurAbsentsOuNonPointes}" DockPanel.Dock="Right" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="{Binding LabelAbsentsOuNonPointesCourt}" Foreground="{StaticResource BrushText}" FontWeight="Bold" VerticalAlignment="Center" FontSize="13"/>
+
+                                </DockPanel>
+
+                                <DockPanel>
+
+                                    <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8" Background="#225B9CFF" Margin="0,0,10,0">
+
+                                        <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushInfo}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+
+                                    </Border>
+
+                                    <TextBlock Text="{Binding CompteurSortis}" DockPanel.Dock="Right" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="Sortis" Foreground="{StaticResource BrushText}" FontWeight="Bold" VerticalAlignment="Center" FontSize="13"/>
+
+                                </DockPanel>
+
+                            </StackPanel>
+
+                        </Border>
+
+                    </StackPanel>
+
+                </Grid>
+
+
+
+                <!-- Employés -->
+
+                <Grid Visibility="{Binding EstEmployes, Converter={StaticResource BoolToVis}}" Margin="8,4,8,12">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="*"/>
+
+                        <ColumnDefinition Width="Auto"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0" Margin="0,0,16,0">
+
+                        <StackPanel DockPanel.Dock="Top">
+
+                            <TextBlock Style="{StaticResource PageTitle}" Text="Employés"/>
+
+                            <TextBlock Style="{StaticResource PageSubtitle}" Text="Fiches + PIN pointeuse"/>
+
+                            <DockPanel Margin="0,0,0,16">
+
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+
+                                    <Button Content="Nouveau" Command="{Binding NouvelEmployeCommand}"/>
+
+                                    <Button Content="Modifier" Style="{StaticResource GhostButton}" Command="{Binding EditerEmployeCommand}"/>
+
+                                    <Button Content="Supprimer" Style="{StaticResource DangerButton}" Command="{Binding SupprimerEmployeCommand}" Margin="0"/>
+
+                                </StackPanel>
+
+                                <TextBox Width="260" HorizontalAlignment="Left"
+
+                                         Text="{Binding FiltreEmploye, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            </DockPanel>
+
+                        </StackPanel>
+
+                        <Border Style="{StaticResource Card}" Padding="8">
+
+                            <DataGrid ItemsSource="{Binding Employes}" SelectedItem="{Binding EmployeSelectionne}">
+
+                                <DataGrid.Columns>
+
+                                    <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="110"
+
+                                                        ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                    <DataGridTextColumn Header="Nom" Binding="{Binding Nom}" Width="*"
+
+                                                        ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                    <DataGridTextColumn Header="Prénom" Binding="{Binding Prenom}" Width="130"
+
+                                                        ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                    <DataGridTextColumn Header="PIN" Binding="{Binding CodePinZk}" Width="90"
+
+                                                        ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                    <DataGridCheckBoxColumn Header="Actif" Binding="{Binding Actif}" Width="70"/>
+
+                                </DataGrid.Columns>
+
+                            </DataGrid>
+
+                        </Border>
+
+                    </DockPanel>
+
+                    <Border Grid.Column="1" Width="300" Style="{StaticResource Card}"
+
+                            Visibility="{Binding EmployeEdition, Converter={StaticResource NullToVis}}">
+
+                        <StackPanel>
+
+                            <TextBlock Text="Fiche" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushText}" Margin="0,0,0,18"/>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Matricule"/>
+
+                            <TextBox Text="{Binding EmployeEdition.Matricule, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Nom"/>
+
+                            <TextBox Text="{Binding EmployeEdition.Nom, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Prénom"/>
+
+                            <TextBox Text="{Binding EmployeEdition.Prenom, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="PIN pointeuse"/>
+
+                            <TextBox Text="{Binding EmployeEdition.CodePinZk, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <CheckBox Content="Actif" IsChecked="{Binding EmployeEdition.Actif}"/>
+
+                            <Button Content="Enregistrer" Command="{Binding SauverEmployeCommand}" Margin="0,12,0,0" HorizontalAlignment="Stretch"/>
+
+                        </StackPanel>
+
+                    </Border>
+
+                </Grid>
+
+
+
+                <!-- Présence -->
+
+                <Grid Visibility="{Binding EstPresence, Converter={StaticResource BoolToVis}}" Margin="2,0,2,0">
+
+                    <Grid.RowDefinitions>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="*"/>
+
+                    </Grid.RowDefinitions>
+
+
+
+                    <!-- Header -->
+
+                    <DockPanel Grid.Row="0" Margin="4,2,4,14">
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+
+                            <Border Background="#FFE4E7EC" CornerRadius="10" Padding="3" Margin="0,0,10,0"
+
+                                    BorderBrush="{StaticResource BrushStroke}" BorderThickness="1">
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <Button Style="{StaticResource QuietButton}" Content="‹" FontSize="16"
+
+                                            Command="{Binding JourPrecedentCommand}" Margin="0" Padding="12,6"
+
+                                            ToolTip="Jour précédent"/>
+
+                                    <Button Style="{StaticResource QuietButton}" Content="Aujourd'hui"
+
+                                            Command="{Binding JourAujourdhuiCommand}" Margin="0" Padding="12,6"/>
+
+                                    <Button Style="{StaticResource QuietButton}" Content="›" FontSize="16"
+
+                                            Command="{Binding JourSuivantCommand}" Margin="0" Padding="12,6"
+
+                                            ToolTip="Jour suivant"/>
+
+                                </StackPanel>
+
+                            </Border>
+
+
+
+                            <Button Style="{StaticResource GhostButton}" Content="Exporter ?" Margin="0,0,8,0"
+
+                                    Click="ExporterPresence_Click" ToolTip="Exporter les données du jour"/>
+
+                            <Button Command="{Binding SynchroniserZkCommand}" Padding="14,10" Margin="0"
+
+                                    ToolTip="Synchroniser la pointeuse">
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE895;" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                    <TextBlock Text="Synchroniser"/>
+
+                                </StackPanel>
+
+                            </Button>
+
+                        </StackPanel>
+
+                        <StackPanel>
+
+                            <TextBlock Style="{StaticResource PageTitle}" Text="Présence" Margin="0,0,0,2"/>
+
+                            <TextBlock Text="{Binding DatePresenceLibelle}" Foreground="{StaticResource BrushText}" FontWeight="Bold" FontSize="14"/>
+
+                        </StackPanel>
+
+                    </DockPanel>
+
+
+
+                    <!-- Alerte terminal -->
+
+                    <Border Grid.Row="1" Margin="4,0,4,12" Style="{StaticResource MessageBanner}"
+
+                            Visibility="{Binding TerminalAlerteVisible, Converter={StaticResource BoolToVis}}">
+
+                        <DockPanel>
+
+                            <Button DockPanel.Dock="Right" Content="Configurer maintenant"
+
+                                    Command="{Binding ConfigurerTerminalCommand}" Margin="12,0,0,0"
+
+                                    Background="White" Foreground="#FFE30613"/>
+
+                            <StackPanel>
+
+                                <TextBlock Text="? Configuration requise" FontWeight="SemiBold"
+
+                                           Foreground="White" FontSize="13"/>
+
+                                <TextBlock Text="Le terminal de pointage n'est pas configuré."
+
+                                           Foreground="White" FontWeight="Bold" FontSize="12" Margin="0,3,0,0"/>
+
+                            </StackPanel>
+
+                        </DockPanel>
+
+                    </Border>
+
+
+
+                    <!-- KPI -->
+
+                    <UniformGrid Grid.Row="2" Columns="4" Margin="4,0,4,12"
+
+                                 Visibility="{Binding PresenceListeAgrandie, Converter={StaticResource InvBoolToVis}}">
+
+                        <Border Style="{StaticResource StatCard}" Cursor="Hand" Margin="0,0,10,0">
+
+                            <Border.InputBindings>
+
+                                <MouseBinding Gesture="LeftClick" Command="{Binding FiltrerStatutCommand}" CommandParameter="Parti"/>
+
+                            </Border.InputBindings>
+
+                            <DockPanel>
+
+                                <Border DockPanel.Dock="Right" Width="32" Height="32" CornerRadius="8" Background="#2235D39A">
+
+                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushSuccess}"
+
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                </Border>
+
+                                <StackPanel>
+
+                                    <TextBlock Text="PRÉSENTS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                    <TextBlock Text="{Binding CompteurPresents}" FontSize="32" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" Margin="0,4,0,0"/>
+
+                                    <TextBlock Text="{Binding CompteurPresentsContexte}" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                        <Border Style="{StaticResource StatCard}" Cursor="Hand" Margin="0,0,10,0">
+
+                            <Border.InputBindings>
+
+                                <MouseBinding Gesture="LeftClick" Command="{Binding FiltrerStatutCommand}" CommandParameter="Retard"/>
+
+                            </Border.InputBindings>
+
+                            <DockPanel>
+
+                                <Border DockPanel.Dock="Right" Width="32" Height="32" CornerRadius="8" Background="#22FFC233">
+
+                                    <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushWarning}"
+
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                </Border>
+
+                                <StackPanel>
+
+                                    <TextBlock Text="RETARDS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                    <TextBlock Text="{Binding CompteurRetards}" FontSize="32" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" Margin="0,4,0,0"/>
+
+                                    <TextBlock Text="{Binding CompteurRetardsContexte}" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                        <Border Style="{StaticResource StatCard}" Cursor="Hand" Margin="0,0,10,0">
+
+                            <Border.InputBindings>
+
+                                <MouseBinding Gesture="LeftClick" Command="{Binding FiltrerStatutCommand}" CommandParameter="En cours"/>
+
+                            </Border.InputBindings>
+
+                            <DockPanel>
+
+                                <Border DockPanel.Dock="Right" Width="32" Height="32" CornerRadius="8" Background="#225B9CFF">
+
+                                    <TextBlock Text="&#xE121;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushInfo}"
+
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                </Border>
+
+                                <StackPanel>
+
+                                    <TextBlock Text="EN COURS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                    <TextBlock Text="{Binding CompteurEnCours}" FontSize="32" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" Margin="0,4,0,0"/>
+
+                                    <TextBlock Text="{Binding CompteurEnCoursContexte}" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                        <Border Style="{StaticResource StatCard}" Cursor="Hand" Margin="0">
+
+                            <Border.InputBindings>
+
+                                <MouseBinding Gesture="LeftClick" Command="{Binding FiltrerStatutCommand}" CommandParameter="AbsentsAuto"/>
+
+                            </Border.InputBindings>
+
+                            <DockPanel>
+
+                                <Border DockPanel.Dock="Right" Width="32" Height="32" CornerRadius="8" Background="#22FF6B72">
+
+                                    <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource BrushDanger}"
+
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                </Border>
+
+                                <StackPanel>
+
+                                    <TextBlock Text="{Binding LabelAbsentsOuNonPointes}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                                    <TextBlock Text="{Binding CompteurAbsentsOuNonPointes}" FontSize="32" FontWeight="Bold"
+
+                                               Foreground="{StaticResource BrushText}" Margin="0,4,0,0"/>
+
+                                    <TextBlock Text="{Binding CompteurAbsentsContexte}" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                    </UniformGrid>
+
+
+
+                    <!-- Liste + panneau -->
+
+                    <Grid Grid.Row="3" Margin="4,0,4,0">
+
+                        <Grid.ColumnDefinitions>
+
+                            <ColumnDefinition Width="*"/>
+
+                            <ColumnDefinition>
+
+                                <ColumnDefinition.Style>
+
+                                    <Style TargetType="ColumnDefinition">
+
+                                        <Setter Property="Width" Value="300"/>
+
+                                        <Style.Triggers>
+
+                                            <DataTrigger Binding="{Binding PresenceListeAgrandie}" Value="True">
+
+                                                <Setter Property="Width" Value="0"/>
+
+                                            </DataTrigger>
+
+                                        </Style.Triggers>
+
+                                    </Style>
+
+                                </ColumnDefinition.Style>
+
+                            </ColumnDefinition>
+
+                        </Grid.ColumnDefinitions>
+
+
+
+                        <Border Grid.Column="0" CornerRadius="12" Background="{StaticResource BrushBgTable}"
+
+                                BorderBrush="{StaticResource BrushStroke}" BorderThickness="1">
+
+                            <Border.Style>
+
+                                <Style TargetType="Border">
+
+                                    <Setter Property="Margin" Value="0,0,12,0"/>
+
+                                    <Style.Triggers>
+
+                                        <DataTrigger Binding="{Binding PresenceListeAgrandie}" Value="True">
+
+                                            <Setter Property="Margin" Value="0"/>
+
+                                        </DataTrigger>
+
+                                    </Style.Triggers>
+
+                                </Style>
+
+                            </Border.Style>
+
+                            <DockPanel>
+
+                                <!-- Recherche + filtres -->
+
+                                <Border DockPanel.Dock="Top" Padding="14,12" BorderBrush="{StaticResource BrushStroke}" BorderThickness="0,0,0,1">
+
+                                    <Grid>
+
+                                        <Grid.RowDefinitions>
+
+                                            <RowDefinition Height="Auto"/>
+
+                                            <RowDefinition Height="Auto"/>
+
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Grid.Row="0" Margin="0,0,0,10">
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="*"/>
+
+                                                <ColumnDefinition Width="150"/>
+
+                                                <ColumnDefinition Width="Auto"/>
+
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Grid.Column="0" Margin="0,0,10,0">
+
+                                                <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets"
+
+                                                           Foreground="{StaticResource BrushText}" FontWeight="Bold"
+
+                                                           VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
+
+                                                <TextBox Margin="0" Padding="36,10,12,10"
+
+                                                         Text="{Binding FiltrePresenceTexte, UpdateSourceTrigger=PropertyChanged}"
+
+                                                         Tag="Rechercher"/>
+
+                                                <TextBlock Text="Rechercher un employé…" Foreground="#668D99AE"
+
+                                                           Margin="36,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+
+                                                    <TextBlock.Style>
+
+                                                        <Style TargetType="TextBlock">
+
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+
+                                                            <Style.Triggers>
+
+                                                                <DataTrigger Binding="{Binding FiltrePresenceTexte}" Value="">
+
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+
+                                                                </DataTrigger>
+
+                                                            </Style.Triggers>
+
+                                                        </Style>
+
+                                                    </TextBlock.Style>
+
+                                                </TextBlock>
+
+                                            </Grid>
+
+                                            <DatePicker Grid.Column="1" SelectedDate="{Binding DatePresence}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                            <Button Grid.Column="2" Style="{StaticResource QuietButton}"
+
+                                                    Command="{Binding BasculerPresenceAgrandieCommand}"
+
+                                                    ToolTip="{Binding PresenceAgrandirInfoBulle}"
+
+                                                    Padding="10,8" Margin="0" Background="#FFE4E7EC">
+
+                                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="{Binding PresenceAgrandirIcone}" FontSize="14"
+
+                                                           Foreground="{StaticResource BrushText}"/>
+
+                                            </Button>
+
+                                        </Grid>
+
+                                        <DockPanel Grid.Row="1" LastChildFill="False">
+
+                                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center"
+
+                                                       Text="{Binding CompteurAffiches, StringFormat={}{0} lignes}"
+
+                                                       Foreground="{StaticResource BrushText}" FontWeight="Bold" FontSize="12"/>
+
+                                            <StackPanel Orientation="Horizontal">
+
+                                                <RadioButton Style="{StaticResource FilterTab}" Content="Tous"
+
+                                                             IsChecked="{Binding FiltreTousActif, Mode=OneWay}"
+
+                                                             Command="{Binding FiltrerStatutCommand}" CommandParameter="Tous" GroupName="FiltrePresence"/>
+
+                                                <RadioButton Style="{StaticResource FilterTab}" Content="Présents"
+
+                                                             IsChecked="{Binding FiltrePresentsActif, Mode=OneWay}"
+
+                                                             Command="{Binding FiltrerStatutCommand}" CommandParameter="Parti" GroupName="FiltrePresence"/>
+
+                                                <RadioButton Style="{StaticResource FilterTab}" Content="Retards"
+
+                                                             IsChecked="{Binding FiltreRetardsActif, Mode=OneWay}"
+
+                                                             Command="{Binding FiltrerStatutCommand}" CommandParameter="Retard" GroupName="FiltrePresence"/>
+
+                                                <RadioButton Style="{StaticResource FilterTab}" Content="En cours"
+
+                                                             IsChecked="{Binding FiltreEnCoursActif, Mode=OneWay}"
+
+                                                             Command="{Binding FiltrerStatutCommand}" CommandParameter="En cours" GroupName="FiltrePresence"/>
+
+                                                <RadioButton Style="{StaticResource FilterTab}"
+
+                                                             Content="{Binding LabelAbsentsOuNonPointesCourt}"
+
+                                                             IsChecked="{Binding FiltreAbsentsActif, Mode=OneWay}"
+
+                                                             Command="{Binding FiltrerStatutCommand}" CommandParameter="AbsentsAuto" GroupName="FiltrePresence" Margin="0"/>
+
+                                            </StackPanel>
+
+                                        </DockPanel>
+
+                                    </Grid>
+
+                                </Border>
+
+
+
+                                <!-- Empty state -->
+
+                                <Border Style="{StaticResource MessageBanner}" Margin="24,0" MaxWidth="420"
+
+                                        VerticalAlignment="Center" HorizontalAlignment="Center"
+
+                                        Visibility="{Binding ListePresenceVide, Converter={StaticResource BoolToVis}}">
+
+                                    <StackPanel>
+
+                                        <TextBlock Text="Aucun résultat" FontSize="15" FontWeight="SemiBold"
+
+                                                   Foreground="White" HorizontalAlignment="Center"/>
+
+                                        <TextBlock Text="{Binding MessageListeVide}" FontSize="12"
+
+                                                   Foreground="White" FontWeight="Bold" Margin="0,6,0,0"
+
+                                                   HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                                    </StackPanel>
+
+                                </Border>
+
+
+
+                                <DataGrid x:Name="GrillePresence"
+
+                                          ItemsSource="{Binding PresenceJour}"
+
+                                          SelectedItem="{Binding LigneJourSelectionnee}"
+
+                                          Margin="6,0,6,6"
+
+                                          RowHeight="52"
+
+                                          HeadersVisibility="Column"
+
+                                          GridLinesVisibility="None"
+
+                                          BorderThickness="0"
+
+                                          Background="Transparent"
+
+                                          RowBackground="Transparent"
+
+                                          AlternatingRowBackground="#08000000"
+
+                                          HorizontalScrollBarVisibility="Disabled"
+
+                                          VerticalScrollBarVisibility="Auto"
+
+                                          CanUserResizeColumns="False"
+
+                                          CanUserSortColumns="True"
+
+                                          SelectionUnit="FullRow"
+
+                                          SelectionMode="Single"
+
+                                          IsReadOnly="True"
+
+                                          AutoGenerateColumns="False"
+
+                                          FontSize="13"
+
+                                          Visibility="{Binding ListePresenceVide, Converter={StaticResource InvBoolToVis}}">
+
+                                    <DataGrid.Columns>
+
+                                        <DataGridTemplateColumn Header="Employé" Width="*">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+
+                                                        <Border Width="34" Height="34" CornerRadius="17" Margin="0,0,10,0">
+
+                                                            <Border.Style>
+
+                                                                <Style TargetType="Border">
+
+                                                                    <Setter Property="Background" Value="#14000000"/>
+
+                                                                    <Style.Triggers>
+
+                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+
+                                                                            <Setter Property="Background" Value="#33FFFFFF"/>
+
+                                                                        </DataTrigger>
+
+                                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+
+                                                                            <Setter Property="Background" Value="#33FFFFFF"/>
+
+                                                                        </DataTrigger>
+
+                                                                    </Style.Triggers>
+
+                                                                </Style>
+
+                                                            </Border.Style>
+
+                                                            <TextBlock Text="{Binding Initiales}" FontSize="11" FontWeight="Bold"
+
+                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridCell}}"
+
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                                        </Border>
+
+                                                        <StackPanel VerticalAlignment="Center">
+
+                                                            <TextBlock Text="{Binding NomComplet}" FontWeight="Bold"
+
+                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridCell}}"/>
+
+                                                            <TextBlock Text="{Binding Matricule}" FontSize="11" FontWeight="Bold"
+
+                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridCell}}"
+
+                                                                       Opacity="0.85"/>
+
+                                                        </StackPanel>
+
+                                                    </StackPanel>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="100"
+
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                        <DataGridTextColumn Header="Entrée" Binding="{Binding EntreeAffichee}" Width="72"
+
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                        <DataGridTextColumn Header="Sortie" Binding="{Binding SortieAffichee}" Width="72"
+
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                        <DataGridTextColumn Header="Heures" Binding="{Binding HeuresAffichees}" Width="72"
+
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                        <DataGridTemplateColumn Header="Statut" Width="120">
+
+                                            <DataGridTemplateColumn.CellTemplate>
+
+                                                <DataTemplate>
+
+                                                    <Border CornerRadius="999" Padding="10,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+
+                                                        <Border.Style>
+
+                                                            <Style TargetType="Border">
+
+                                                                <Setter Property="Background" Value="#0A000000"/>
+
+                                                                <Style.Triggers>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="Parti">
+
+                                                                        <Setter Property="Background" Value="#2235D39A"/>
+
+                                                                    </DataTrigger>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="Présent">
+
+                                                                        <Setter Property="Background" Value="#2235D39A"/>
+
+                                                                    </DataTrigger>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="Retard">
+
+                                                                        <Setter Property="Background" Value="#22FFC233"/>
+
+                                                                    </DataTrigger>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="En cours">
+
+                                                                        <Setter Property="Background" Value="#225B9CFF"/>
+
+                                                                    </DataTrigger>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="Absent">
+
+                                                                        <Setter Property="Background" Value="#22FF6B72"/>
+
+                                                                    </DataTrigger>
+
+                                                                    <DataTrigger Binding="{Binding Statut}" Value="Non pointé">
+
+                                                                        <Setter Property="Background" Value="#0A000000"/>
+
+                                                                    </DataTrigger>
+
+                                                                </Style.Triggers>
+
+                                                            </Style>
+
+                                                        </Border.Style>
+
+                                                        <TextBlock Text="{Binding StatutLibelle}" FontSize="12" FontWeight="SemiBold">
+
+                                                            <TextBlock.Style>
+
+                                                                <Style TargetType="TextBlock">
+
+                                                                    <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
+                                                                    <Setter Property="FontWeight" Value="Bold"/>
+
+                                                                    <Style.Triggers>
+
+                                                                        <DataTrigger Binding="{Binding Statut}" Value="Parti">
+
+                                                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}"/>
+
+                                                                        </DataTrigger>
+
+                                                                        <DataTrigger Binding="{Binding Statut}" Value="Présent">
+
+                                                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}"/>
+
+                                                                        </DataTrigger>
+
+                                                                        <DataTrigger Binding="{Binding Statut}" Value="Retard">
+
+                                                                            <Setter Property="Foreground" Value="{StaticResource BrushWarning}"/>
+
+                                                                        </DataTrigger>
+
+                                                                        <DataTrigger Binding="{Binding Statut}" Value="En cours">
+
+                                                                            <Setter Property="Foreground" Value="{StaticResource BrushInfo}"/>
+
+                                                                        </DataTrigger>
+
+                                                                        <DataTrigger Binding="{Binding Statut}" Value="Absent">
+
+                                                                            <Setter Property="Foreground" Value="{StaticResource BrushDanger}"/>
+
+                                                                        </DataTrigger>
+
+                                                                    </Style.Triggers>
+
+                                                                </Style>
+
+                                                            </TextBlock.Style>
+
+                                                        </TextBlock>
+
+                                                    </Border>
+
+                                                </DataTemplate>
+
+                                            </DataGridTemplateColumn.CellTemplate>
+
+                                        </DataGridTemplateColumn>
+
+                                    </DataGrid.Columns>
+
+                                </DataGrid>
+
+                            </DockPanel>
+
+                        </Border>
+
+
+
+                        <!-- Panneau employé -->
+
+                        <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12"
+
+                                Background="{StaticResource BrushBgCard}"
+
+                                Visibility="{Binding PresenceListeAgrandie, Converter={StaticResource InvBoolToVis}}">
+
+                            <Grid>
+
+                                <StackPanel VerticalAlignment="Center"
+
+                                            Visibility="{Binding DetailVisible, Converter={StaticResource InvBoolToVis}}">
+
+                                    <TextBlock Text="Sélectionnez un employé" FontSize="14" FontWeight="SemiBold"
+
+                                               Foreground="{StaticResource BrushText}" HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                                    <TextBlock Text="Recherchez, sélectionnez, puis pointez."
+
+                                               FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold" Margin="0,6,0,0"
+
+                                               HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+
+                                </StackPanel>
+
+
+
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+
+                                              Visibility="{Binding DetailVisible, Converter={StaticResource BoolToVis}}">
+
+                                    <StackPanel Margin="4,2,4,8">
+
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="EMPLOYÉ" Margin="0,0,0,6"/>
+
+                                        <TextBlock Text="{Binding DetailNom}" FontSize="15" FontWeight="SemiBold"
+
+                                                   Foreground="{StaticResource BrushText}" TextWrapping="Wrap"/>
+
+                                        <TextBlock Text="{Binding DetailMatricule}" FontSize="12"
+
+                                                   Foreground="{StaticResource BrushText}" FontWeight="Bold" Margin="0,2,0,10"/>
+
+
+
+                                        <DockPanel Margin="0,0,0,12">
+
+                                            <TextBlock Style="{StaticResource SectionLabel}" Text="STATUT" Margin="0" VerticalAlignment="Center"/>
+
+                                            <TextBlock Text="{Binding DetailStatut}" FontSize="13" FontWeight="SemiBold"
+
+                                                       Foreground="{StaticResource BrushText}" HorizontalAlignment="Right"
+
+                                                       VerticalAlignment="Center"/>
+
+                                        </DockPanel>
+
+
+
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="POINTAGE RAPIDE" Margin="0,0,0,8"/>
+
+                                        <Grid Margin="0,0,0,8">
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="*"/>
+
+                                                <ColumnDefinition Width="8"/>
+
+                                                <ColumnDefinition Width="*"/>
+
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Grid.Column="0" Content="ENTRÉE" Style="{StaticResource EntryButton}"
+
+                                                    Command="{Binding PointerEntreeCommand}"
+
+                                                    HorizontalAlignment="Stretch" Margin="0"
+
+                                                    IsEnabled="{Binding DetailPeutEntree}"/>
+
+                                            <Button Grid.Column="2" Content="SORTIE" Style="{StaticResource ExitButton}"
+
+                                                    Command="{Binding PointerSortieCommand}"
+
+                                                    HorizontalAlignment="Stretch" Margin="0"
+
+                                                    IsEnabled="{Binding DetailPeutSortie}"/>
+
+                                        </Grid>
+
+                                        <Button Content="Journée standard" Style="{StaticResource GhostButton}"
+
+                                                Command="{Binding PresenceStandardCommand}"
+
+                                                HorizontalAlignment="Stretch" Margin="0,0,0,12"
+
+                                                ToolTip="Applique l’horaire prévu (arrivée ? fin de journée)"/>
+
+
+
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="CORRIGER" Margin="0,0,0,6"/>
+
+                                        <Grid Margin="0,0,0,8">
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="*"/>
+
+                                                <ColumnDefinition Width="8"/>
+
+                                                <ColumnDefinition Width="*"/>
+
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+
+                                                <TextBlock Text="Entrée" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+                                                <TextBox Text="{Binding EditionEntree, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+
+                                                <TextBlock Text="Sortie" FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+                                                <TextBox Text="{Binding EditionSortie, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                            </StackPanel>
+
+                                        </Grid>
+
+                                        <Button Content="Enregistrer la correction" Style="{StaticResource SoftPrimaryButton}"
+
+                                                Command="{Binding AppliquerHorairesCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+
+
+
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="AUTRES ACTIONS" Margin="0,0,0,8"/>
+
+                                        <Button Content="Annuler le dernier pointage" Style="{StaticResource QuietButton}"
+
+                                                Command="{Binding SupprimerDernierPointageCommand}"
+
+                                                HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
+
+                                        <Button Content="Effacer la journée" Style="{StaticResource QuietButton}"
+
+                                                Command="{Binding SupprimerJourneeCommand}"
+
+                                                HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
+
+                                        <Button Content="Marquer absent" Style="{StaticResource DangerButton}"
+
+                                                Command="{Binding MarquerAbsentCommand}"
+
+                                                HorizontalAlignment="Stretch" Margin="0"/>
+
+                                    </StackPanel>
+
+                                </ScrollViewer>
+
+                            </Grid>
+
+                        </Border>
+
+                    </Grid>
+
+                </Grid>
+
+
+
+                <!-- Rapports -->
+
+                <DockPanel Visibility="{Binding EstRapports, Converter={StaticResource BoolToVis}}" Margin="8,4,8,12">
+
+                    <StackPanel DockPanel.Dock="Top">
+
+                        <TextBlock Style="{StaticResource PageTitle}" Text="Rapports"/>
+
+                        <TextBlock Style="{StaticResource PageSubtitle}" Text="Résumé mensuel"/>
+
+                        <DockPanel Margin="0,0,0,18">
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                <TextBlock Text="Mois" Style="{StaticResource FieldLabel}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                <TextBox Width="56" Text="{Binding MoisRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,0"/>
+
+                                <TextBlock Text="Année" Style="{StaticResource FieldLabel}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                <TextBox Width="80" Text="{Binding AnneeRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,0"/>
+
+                                <Button Content="Charger" Style="{StaticResource GhostButton}" Command="{Binding ChargerRapportCommand}"/>
+
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+
+                                <Button Content="Excel" Command="{Binding ExportExcelMoisCommand}"/>
+
+                                <Button Content="PDF" Style="{StaticResource GhostButton}" Command="{Binding ExportPdfMoisCommand}" Margin="0"/>
+
+                            </StackPanel>
+
+                        </DockPanel>
+
+                    </StackPanel>
+
+                    <Border Style="{StaticResource Card}" Padding="8">
+
+                        <DataGrid ItemsSource="{Binding ResumeMois}">
+
+                            <DataGrid.Columns>
+
+                                <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="110"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                <DataGridTextColumn Header="Employé" Binding="{Binding NomComplet}" Width="*"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                <DataGridTextColumn Header="Présents" Binding="{Binding JoursPresents}" Width="100"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                <DataGridTextColumn Header="Heures" Binding="{Binding HeuresTotales, StringFormat=0.##}" Width="90"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                <DataGridTextColumn Header="Absences" Binding="{Binding Absences}" Width="90"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                                <DataGridTextColumn Header="Retards" Binding="{Binding Retards}" Width="90"
+
+                                                    ElementStyle="{StaticResource DataGridCellText}"/>
+
+                            </DataGrid.Columns>
+
+                        </DataGrid>
+
+                    </Border>
+
+                </DockPanel>
+
+
+
+                <!-- Paramètres -->
+
+                <Grid Visibility="{Binding EstParametres, Converter={StaticResource BoolToVis}}" Margin="4,0,4,4">
+
+                    <Grid.RowDefinitions>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="*"/>
+
+                    </Grid.RowDefinitions>
+
+
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Top">
+
+                            <Button Content="Tester la pointeuse" Style="{StaticResource GhostButton}"
+
+                                    Command="{Binding SynchroniserZkCommand}" ToolTip="Tente une connexion TCP/SDK vers le terminal"/>
+
+                            <Button Content="Enregistrer" Command="{Binding SauverParametresCommand}" Margin="0"/>
+
+                        </StackPanel>
+
+                        <StackPanel>
+
+                            <TextBlock Text="Paramètres" FontSize="28" FontWeight="Bold" Foreground="{StaticResource BrushText}"/>
+
+                            <TextBlock Text="Entreprise, horaires et pointeuse" FontSize="13"
+
+                                       Foreground="{StaticResource BrushText}" FontWeight="Bold" Margin="0,4,0,0"/>
+
+                        </StackPanel>
+
+                    </DockPanel>
+
+                    <!-- Mise à jour application -->
+                    <Border Grid.Row="1" Style="{StaticResource MessageBanner}" Margin="0,0,0,14" Padding="16,14">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right"
+                                    Command="{Binding VerifierMiseAJourCommand}"
+                                    Background="White" Foreground="#FFE30613"
+                                    FontWeight="Bold" Padding="16,10" Margin="12,0,0,0"
+                                    MinHeight="36" VerticalAlignment="Center"
+                                    Content="Vérifier les mises à jour"
+                                    ToolTip="Consulte le serveur GitHub pour une nouvelle version"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="MISE À JOUR" Foreground="#CCFFFFFF" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding VersionApplication, StringFormat=LT Présence v{0}}"
+                                           Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,2,0,0"/>
+                                <TextBlock Text="{Binding MessageMiseAJour}" Foreground="White" FontSize="12"
+                                           FontWeight="Bold" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+
+
+                    <!-- Bannière statut terminal -->
+
+                    <Border Grid.Row="2" Style="{StaticResource MessageBanner}" Margin="0,0,0,14">
+
+                        <DockPanel>
+
+                            <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0"
+
+                                     VerticalAlignment="Top" Fill="White"/>
+
+                            <StackPanel>
+
+                                <TextBlock Text="{Binding TerminalCarteTitre}" FontSize="13" FontWeight="SemiBold"
+
+                                           Foreground="White"/>
+
+                                <TextBlock FontSize="12" Foreground="White" FontWeight="Bold" Margin="0,3,0,0" TextWrapping="Wrap">
+
+                                    <TextBlock.Style>
+
+                                        <Style TargetType="TextBlock">
+
+                                            <Setter Property="Text" Value="Saisissez l’adresse IP du terminal ZKTeco sur le même réseau, puis Enregistrer et Tester."/>
+
+                                            <Style.Triggers>
+
+                                                <DataTrigger Binding="{Binding TerminalConfigure}" Value="True">
+
+                                                    <Setter Property="Text" Value="Terminal prêt. Vous pouvez lancer une synchronisation ou activer la sync automatique."/>
+
+                                                </DataTrigger>
+
+                                            </Style.Triggers>
+
+                                        </Style>
+
+                                    </TextBlock.Style>
+
+                                </TextBlock>
+
+                            </StackPanel>
+
+                        </DockPanel>
+
+                    </Border>
+
+
+
+                    <Grid Grid.Row="3">
+
+                        <Grid.ColumnDefinitions>
+
+                            <ColumnDefinition Width="1.05*" MinWidth="300"/>
+
+                            <ColumnDefinition Width="14"/>
+
+                            <ColumnDefinition Width="1.2*" MinWidth="340"/>
+
+                        </Grid.ColumnDefinitions>
+
+
+
+                        <!-- Entreprise & journée -->
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Stretch">
+
+                            <StackPanel>
+
+                                <TextBlock Text="Entreprise &amp; journée" FontSize="15" FontWeight="SemiBold"
+
+                                           Foreground="{StaticResource BrushText}" Margin="0,0,0,16"/>
+
+
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Nom de l'entreprise"/>
+
+                                <TextBox Text="{Binding NomEntreprise, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+
+
+
+                                <TextBlock Text="HORAIRES DE PRÉSENCE" Style="{StaticResource SectionLabel}" Margin="0,4,0,10"/>
+
+                                <Grid>
+
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="10"/>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                        <ColumnDefinition Width="10"/>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Heure d'arrivée"/>
+
+                                        <TextBox Text="{Binding HeureDebutTravail, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2">
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Retard après"/>
+
+                                        <TextBox Text="{Binding HeureLimiteTolerance, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="4">
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Fin de journée"/>
+
+                                        <TextBox Text="{Binding HeureFinTravail, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                    </StackPanel>
+
+                                </Grid>
+
+
+
+                                <TextBlock Text="NOTIFICATIONS &amp; DÉMARRAGE" Style="{StaticResource SectionLabel}" Margin="0,18,0,10"/>
+
+                                <Border Background="#FFE4E7EC" CornerRadius="10" Padding="12,10"
+
+                                        BorderBrush="{StaticResource BrushStroke}" BorderThickness="1">
+
+                                    <StackPanel>
+
+                                        <CheckBox Content="Notifications Windows" IsChecked="{Binding NotificationsWindowsActives}" Margin="0"/>
+
+                                        <TextBlock Text="Toasts cinéma rouge→noir + son pour les sync ZK"
+
+                                                   FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"
+
+                                                   Margin="26,6,0,0" TextWrapping="Wrap"/>
+
+                                        <Button Content="▶  Aperçu notification LT"
+
+                                                Command="{Binding TesterNotificationCommand}"
+
+                                                Margin="0,12,0,0" HorizontalAlignment="Left"
+
+                                                Padding="14,8" MinHeight="34"/>
+
+                                        <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding DemarrerAvecWindows}" Margin="0,12,0,0"/>
+
+                                        <TextBlock Text="Ouverture automatique à l’allumage du PC (reste en arrière-plan)"
+
+                                                   FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"
+
+                                                   Margin="26,6,0,0" TextWrapping="Wrap"/>
+
+                                        <TextBlock Text="Fermer la fenêtre masque l’app dans la zone de notification (Quitter via l’icône)."
+
+                                                   FontSize="11" Foreground="{StaticResource BrushText}" FontWeight="Bold"
+
+                                                   Margin="0,12,0,0" TextWrapping="Wrap"/>
+
+                                    </StackPanel>
+
+                                </Border>
+
+                            </StackPanel>
+
+                        </Border>
+
+
+
+                        <!-- ZKTeco -->
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Stretch">
+
+                            <DockPanel>
+
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+
+                                    <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="11"
+
+                                            Background="#22E30613" Margin="0,0,12,0">
+
+                                        <TextBlock Text="&#xE968;" FontFamily="Segoe MDL2 Assets" FontSize="18"
+
+                                                   Foreground="{StaticResource BrushAccent}"
+
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                    </Border>
+
+                                    <StackPanel VerticalAlignment="Center">
+
+                                        <TextBlock Text="Pointeuse ZKTeco" FontSize="15" FontWeight="SemiBold"
+
+                                                   Foreground="{StaticResource BrushText}"/>
+
+                                        <TextBlock Text="{Binding ZkPortSousTitre}" FontSize="11"
+
+                                                   Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+
+                                    </StackPanel>
+
+                                </DockPanel>
+
+
+
+                                <StackPanel>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Adresse IP du terminal"/>
+
+                                    <Grid Margin="0,0,0,12">
+
+                                        <TextBox Text="{Binding ZkIp, UpdateSourceTrigger=PropertyChanged}" Margin="0"
+
+                                                 Padding="12,11" FontSize="14"/>
+
+                                        <TextBlock Text="ex. 192.168.1.201" Foreground="#668D99AE" Margin="14,0,0,0"
+
+                                                   VerticalAlignment="Center" IsHitTestVisible="False">
+
+                                            <TextBlock.Style>
+
+                                                <Style TargetType="TextBlock">
+
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+
+                                                    <Style.Triggers>
+
+                                                        <DataTrigger Binding="{Binding ZkIp}" Value="">
+
+                                                            <Setter Property="Visibility" Value="Visible"/>
+
+                                                        </DataTrigger>
+
+                                                    </Style.Triggers>
+
+                                                </Style>
+
+                                            </TextBlock.Style>
+
+                                        </TextBlock>
+
+                                    </Grid>
+
+
+
+                                    <Grid Margin="0,0,0,12">
+
+                                        <Grid.ColumnDefinitions>
+
+                                            <ColumnDefinition Width="*"/>
+
+                                            <ColumnDefinition Width="10"/>
+
+                                            <ColumnDefinition Width="*"/>
+
+                                            <ColumnDefinition Width="10"/>
+
+                                            <ColumnDefinition Width="*"/>
+
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Port"/>
+
+                                            <TextBox Text="{Binding ZkPort, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="N° machine"/>
+
+                                            <TextBox Text="{Binding ZkMachine, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
+
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="4">
+
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Intervalle (s)"/>
+
+                                            <TextBox Text="{Binding ZkIntervalle, UpdateSourceTrigger=PropertyChanged}"
+
+                                                     IsEnabled="{Binding ZkSyncActif}" Margin="0"/>
+
+                                        </StackPanel>
+
+                                    </Grid>
+
+
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Mot de passe communication PC"/>
+
+                                    <TextBox Text="{Binding ZkCommPwd, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+
+
+
+                                    <Border Background="#FFE4E7EC" CornerRadius="10" Padding="12,10" Margin="0,0,0,14"
+
+                                            BorderBrush="{StaticResource BrushStroke}" BorderThickness="1">
+
+                                        <CheckBox Content="Synchronisation automatique" IsChecked="{Binding ZkSyncActif}" Margin="0"/>
+
+                                    </Border>
+
+
+
+                                    <TextBlock FontSize="12" Foreground="{StaticResource BrushText}" FontWeight="Bold" TextWrapping="Wrap"
+
+                                               Text="Astuce : l’IP se lit dans le menu réseau de la pointeuse (Comm. ? Ethernet). PC et terminal doivent être sur le même LAN."/>
+
+                                </StackPanel>
+
+                            </DockPanel>
+
+                        </Border>
+
+                    </Grid>
+
+                </Grid>
+
             </Grid>
 
-            <!-- Présence -->
-            <DockPanel Visibility="{Binding EstPresence, Converter={StaticResource BoolToVis}}">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                    <TextBlock DockPanel.Dock="Left" Text="Présence du jour" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                    <DatePicker SelectedDate="{Binding DatePresence}" Width="140" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <Button Content="Entrée manuelle" Command="{Binding PointerEntreeCommand}"/>
-                    <Button Content="Sortie manuelle" Command="{Binding PointerSortieCommand}" Background="#0369A1"/>
-                    <Button Content="Sync pointeuse" Command="{Binding SynchroniserZkCommand}"/>
-                    <Button Content="Excel" Command="{Binding ExportExcelJourCommand}" Background="#475569"/>
-                    <Button Content="PDF" Command="{Binding ExportPdfJourCommand}" Background="#475569"/>
-                </DockPanel>
-                <UniformGrid DockPanel.Dock="Top" Columns="3" Margin="0,0,0,12">
-                    <TextBlock Text="{Binding CompteurPresents, StringFormat=Présents : {0}}" FontWeight="SemiBold" Foreground="#16A34A"/>
-                    <TextBlock Text="{Binding CompteurEnCours, StringFormat=En cours : {0}}" FontWeight="SemiBold" Foreground="#D97706"/>
-                    <TextBlock Text="{Binding CompteurAbsents, StringFormat=Absents : {0}}" FontWeight="SemiBold" Foreground="#DC2626"/>
-                </UniformGrid>
-                <DataGrid ItemsSource="{Binding PresenceJour}" SelectedItem="{Binding LigneJourSelectionnee}">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="100"/>
-                        <DataGridTextColumn Header="Employé" Binding="{Binding NomComplet}" Width="*"/>
-                        <DataGridTextColumn Header="Entrée" Binding="{Binding PremiereEntree, StringFormat=HH:mm}" Width="80"/>
-                        <DataGridTextColumn Header="Sortie" Binding="{Binding DerniereSortie, StringFormat=HH:mm}" Width="80"/>
-                        <DataGridTextColumn Header="Heures" Binding="{Binding Heures, StringFormat=0.##}" Width="70"/>
-                        <DataGridTextColumn Header="Statut" Binding="{Binding Statut}" Width="90"/>
-                        <DataGridTextColumn Header="Poinçons" Binding="{Binding NbPointages}" Width="80"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
+            </Border>
 
-            <!-- Rapports -->
-            <DockPanel Visibility="{Binding EstRapports, Converter={StaticResource BoolToVis}}">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                    <TextBlock Text="Rapport mensuel" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                    <TextBlock Text="Mois" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBox Width="50" Text="{Binding MoisRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0"/>
-                    <TextBlock Text="Année" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBox Width="70" Text="{Binding AnneeRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0"/>
-                    <Button Content="Charger" Command="{Binding ChargerRapportCommand}"/>
-                    <Button Content="Excel" Command="{Binding ExportExcelMoisCommand}" Background="#475569"/>
-                    <Button Content="PDF" Command="{Binding ExportPdfMoisCommand}" Background="#475569"/>
-                </DockPanel>
-                <DataGrid ItemsSource="{Binding ResumeMois}">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="100"/>
-                        <DataGridTextColumn Header="Employé" Binding="{Binding NomComplet}" Width="*"/>
-                        <DataGridTextColumn Header="Jours présents" Binding="{Binding JoursPresents}" Width="110"/>
-                        <DataGridTextColumn Header="Heures" Binding="{Binding HeuresTotales, StringFormat=0.##}" Width="90"/>
-                        <DataGridTextColumn Header="Absences" Binding="{Binding Absences}" Width="90"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
-
-            <!-- Paramètres -->
-            <ScrollViewer Visibility="{Binding EstParametres, Converter={StaticResource BoolToVis}}">
-                <StackPanel MaxWidth="520" HorizontalAlignment="Left">
-                    <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold" Margin="0,0,0,16"/>
-                    <TextBlock Text="Nom de l'entreprise"/>
-                    <TextBox Text="{Binding NomEntreprise, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="Pointeuse ZKTeco" FontSize="16" FontWeight="SemiBold" Margin="0,16,0,8"/>
-                    <TextBlock Text="Adresse IP"/>
-                    <TextBox Text="{Binding ZkIp, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="Port (souvent 4370)"/>
-                    <TextBox Text="{Binding ZkPort, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="N° machine"/>
-                    <TextBox Text="{Binding ZkMachine, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="Mot de passe communication PC"/>
-                    <TextBox Text="{Binding ZkCommPwd, UpdateSourceTrigger=PropertyChanged}"/>
-                    <CheckBox Content="Synchronisation automatique" IsChecked="{Binding ZkSyncActif}" Margin="0,8"/>
-                    <TextBlock Text="Intervalle (secondes)"/>
-                    <TextBox Text="{Binding ZkIntervalle, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="{Binding ZkDerniereSync, StringFormat=Dernière sync : {0}}" Margin="0,8,0,0" Foreground="#64748B"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                        <Button Content="Enregistrer" Command="{Binding SauverParametresCommand}"/>
-                        <Button Content="Tester sync maintenant" Command="{Binding SynchroniserZkCommand}"/>
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
         </Grid>
-    </DockPanel>
+
+
+
+        <!-- Toast in-app cinéma (masqué sur Dashboard qui a son propre pied) -->
+
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="244,0,18,16"
+
+                Style="{StaticResource MessageBanner}" MaxWidth="560" Padding="0"
+
+                Effect="{StaticResource GlassShadow}"
+
+                Visibility="{Binding EstAccueil, Converter={StaticResource InvBoolToVis}}">
+
+            <Grid>
+
+                <Border Height="3" VerticalAlignment="Top"
+
+                        Background="White" Opacity="0.35"/>
+
+                <DockPanel Margin="14,14,16,14">
+
+                    <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="20"
+
+                            Background="#33FFFFFF" BorderBrush="#66FFFFFF" BorderThickness="1"
+
+                            Margin="0,0,12,0" VerticalAlignment="Center">
+
+                        <TextBlock Text="&#xE7E7;" FontFamily="Segoe MDL2 Assets"
+
+                                   Foreground="White" FontSize="16" FontWeight="Bold"
+
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    </Border>
+
+                    <StackPanel VerticalAlignment="Center">
+
+                        <TextBlock Text="LT SERVICES · PRÉSENCE"
+
+                                   Foreground="#CCFFFFFF" FontSize="10" FontWeight="Bold"
+
+                                   Margin="0,0,0,2"/>
+
+                        <TextBlock Text="{Binding StatutBarreAffiche}" Foreground="White"
+
+                                   FontSize="13" FontWeight="Bold" TextWrapping="Wrap"/>
+
+                    </StackPanel>
+
+                </DockPanel>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
 </Window>
+

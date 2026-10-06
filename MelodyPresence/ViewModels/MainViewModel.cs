@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 using MelodyPresence.Data;
 using MelodyPresence.Helpers;
 using MelodyPresence.Models;
@@ -14,6 +16,8 @@ public class MainViewModel : ObservableObject
 {
     private string _onglet = "Accueil";
     private string _statutBarre = "Prêt";
+    private DateTime _derniereActualisationLocale = DateTime.Now;
+    private bool _statutEstErreur;
     private string _messageErreur = "";
     private DateTime _datePresence = DateTime.Today;
     private int _moisRapport = DateTime.Today.Month;
@@ -22,6 +26,13 @@ public class MainViewModel : ObservableObject
     private Employe? _employeEdition;
     private JourPresenceLigne? _ligneJourSelectionnee;
     private string _filtreEmploye = "";
+    private string _filtrePresenceTexte = "";
+    private string _filtrePresenceStatut = "Tous";
+    private string _editionEntree = PresenceCalculService.FormatHhMm(PresenceCalculService.HeureDebutDefaut);
+    private string _editionSortie = PresenceCalculService.FormatHhMm(PresenceCalculService.HeureFinDefaut);
+    private string _nouveauPointageHeure = "";
+    private Pointage? _pointageDetailSelectionne;
+    private List<JourPresenceLigne> _presenceJourBrute = new();
 
     // Paramètres
     private string _nomEntreprise = "";
@@ -32,6 +43,18 @@ public class MainViewModel : ObservableObject
     private bool _zkSyncActif;
     private string _zkIntervalle = "60";
     private string _zkDerniereSync = "Jamais";
+    private bool _notificationsWindowsActives = true;
+    private bool _demarrerAvecWindows = true;
+    private string _heureDebut = PresenceCalculService.FormatHhMm(PresenceCalculService.HeureDebutDefaut);
+    private string _heureLimite = PresenceCalculService.FormatHhMm(PresenceCalculService.HeureLimiteDefaut);
+    private string _heureFin = PresenceCalculService.FormatHhMm(PresenceCalculService.HeureFinDefaut);
+    private bool _presenceListeAgrandie;
+    private bool _syncEnCours;
+    private string _syncErreur = "";
+    private DateTime? _derniereSyncUtc;
+    private readonly DispatcherTimer _horlogeTimer;
+    private const string HeureDebutPauseDefaut = "12:00";
+    private const string HeureFinPauseDefaut = "13:00";
 
     public MainViewModel()
     {
@@ -39,6 +62,7 @@ public class MainViewModel : ObservableObject
         PresenceJour = new ObservableCollection<JourPresenceLigne>();
         ResumeMois = new ObservableCollection<ResumeMoisItem>();
         PointagesRecents = new ObservableCollection<Pointage>();
+        PointagesDetail = new ObservableCollection<Pointage>();
 
         NaviguerCommand = new RelayCommand(p => Onglet = p?.ToString() ?? "Accueil");
         RafraichirCommand = new RelayCommand(_ => RafraichirTout());
@@ -46,8 +70,8 @@ public class MainViewModel : ObservableObject
         EditerEmployeCommand = new RelayCommand(_ => EditerEmploye(), _ => EmployeSelectionne != null);
         SauverEmployeCommand = new RelayCommand(_ => SauverEmploye(), _ => EmployeEdition != null);
         SupprimerEmployeCommand = new RelayCommand(_ => SupprimerEmploye(), _ => EmployeSelectionne != null);
-        PointerEntreeCommand = new RelayCommand(_ => Pointer(PointageType.Entree), _ => LigneJourSelectionnee != null);
-        PointerSortieCommand = new RelayCommand(_ => Pointer(PointageType.Sortie), _ => LigneJourSelectionnee != null);
+        PointerEntreeCommand = new RelayCommand(_ => Pointer(PointageType.Entree), _ => DetailPeutEntree);
+        PointerSortieCommand = new RelayCommand(_ => Pointer(PointageType.Sortie), _ => DetailPeutSortie);
         SynchroniserZkCommand = new RelayCommand(async _ => await SynchroniserZkAsync());
         SauverParametresCommand = new RelayCommand(_ => SauverParametres());
         ChargerRapportCommand = new RelayCommand(_ => ChargerRapportMois());
@@ -56,20 +80,94 @@ public class MainViewModel : ObservableObject
         ExportExcelMoisCommand = new RelayCommand(_ => ExporterExcelMois());
         ExportPdfMoisCommand = new RelayCommand(_ => ExporterPdfMois());
 
-        ZktecoSynchronisationService.SynchroReussie += _ =>
-            Application.Current?.Dispatcher.Invoke(RafraichirTout);
+        JourPrecedentCommand = new RelayCommand(_ => DatePresence = DatePresence.AddDays(-1));
+        JourSuivantCommand = new RelayCommand(_ => DatePresence = DatePresence.AddDays(1));
+        JourAujourdhuiCommand = new RelayCommand(_ => DatePresence = DateTime.Today);
+        FiltrerStatutCommand = new RelayCommand(p =>
+        {
+            var s = p?.ToString() ?? "Tous";
+            if (s == "AbsentsAuto")
+                s = AvantHeureLimite ? "Non pointé" : "Absent";
+            if (s == "PrésentsAuto")
+                s = "Parti";
+            FiltrePresenceStatut = s;
+        });
+        OuvrirPresenceFiltreCommand = new RelayCommand(p =>
+        {
+            var s = p?.ToString() ?? "Tous";
+            if (s == "AbsentsAuto")
+                s = AvantHeureLimite ? "Non pointé" : "Absent";
+            if (s == "PrésentsAuto")
+                s = "Parti";
+            if (s == "RetardsAuto")
+                s = "Retard";
+            FiltrePresenceStatut = s;
+            Onglet = "Présence";
+        });
+        AppliquerHorairesCommand = new RelayCommand(_ => AppliquerHorairesJournee(), _ => LigneJourSelectionnee != null);
+        PresenceStandardCommand = new RelayCommand(_ => AppliquerPresenceStandard(), _ => LigneJourSelectionnee != null);
+        AjouterPointageHeureCommand = new RelayCommand(_ => AjouterPointageHeurePrecise(), _ => LigneJourSelectionnee != null);
+        SupprimerDernierPointageCommand = new RelayCommand(_ => SupprimerDernierPointage(), _ => LigneJourSelectionnee != null);
+        SupprimerJourneeCommand = new RelayCommand(_ => SupprimerJournee(), _ => LigneJourSelectionnee != null);
+        SupprimerPointageDetailCommand = new RelayCommand(_ => SupprimerPointageDetail(), _ => PointageDetailSelectionne != null);
+        MarquerAbsentCommand = new RelayCommand(_ => MarquerAbsent(), _ => LigneJourSelectionnee != null);
+        BasculerPresenceAgrandieCommand = new RelayCommand(_ => PresenceListeAgrandie = !PresenceListeAgrandie);
+        ExportCsvJourCommand = new RelayCommand(_ => ExporterCsvJour());
+        ConfigurerTerminalCommand = new RelayCommand(_ => Onglet = "Paramètres");
+        TesterNotificationCommand = new RelayCommand(_ =>
+        {
+            WindowsNotificationService.NotifierApercuDesign();
+            StatutBarre = "✓ Aperçu notification Windows envoyé";
+        });
+        VerifierMiseAJourCommand = new RelayCommand(
+            async _ => await VerifierMiseAJourAsync(),
+            _ => !MiseAJourEnCours);
+
+        ZktecoSynchronisationService.SynchroReussie += (utc, nb) =>
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _syncErreur = "";
+                RafraichirTout();
+                ActualiserEtatSync();
+                StatutBarre = nb > 0
+                    ? $"✓ Synchronisation terminée — {nb} nouveau(x) pointage(s)"
+                    : "✓ Synchronisation terminée";
+                WindowsNotificationService.NotifierSyncSucces(nb);
+            });
         ZktecoSynchronisationService.SynchroErreur += err =>
-            Application.Current?.Dispatcher.Invoke(() => StatutBarre = err);
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                _syncErreur = err ?? "Synchronisation impossible";
+                ActualiserEtatSync();
+                StatutBarre = _syncErreur;
+                WindowsNotificationService.NotifierSyncErreur(_syncErreur);
+            });
 
         RafraichirTout();
         ChargerParametres();
+        EditionEntree = HeureDebutTravail;
+        EditionSortie = HeureFinTravail;
         ZktecoSynchronisationService.Reconfigurer();
+
+        _horlogeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        _horlogeTimer.Tick += (_, _) => NotifierHorlogeDashboard();
+        _horlogeTimer.Start();
     }
+
+    private TimeSpan DebutTravailTs =>
+        PresenceCalculService.ParserHeure(HeureDebutTravail, PresenceCalculService.HeureDebutDefaut);
+
+    private TimeSpan LimiteToleranceTs =>
+        PresenceCalculService.ParserHeure(HeureLimiteTolerance, PresenceCalculService.HeureLimiteDefaut);
+
+    private TimeSpan FinTravailTs =>
+        PresenceCalculService.ParserHeure(HeureFinTravail, PresenceCalculService.HeureFinDefaut);
 
     public ObservableCollection<Employe> Employes { get; }
     public ObservableCollection<JourPresenceLigne> PresenceJour { get; }
     public ObservableCollection<ResumeMoisItem> ResumeMois { get; }
     public ObservableCollection<Pointage> PointagesRecents { get; }
+    public ObservableCollection<Pointage> PointagesDetail { get; }
 
     public string Onglet
     {
@@ -101,7 +199,53 @@ public class MainViewModel : ObservableObject
     public string StatutBarre
     {
         get => _statutBarre;
-        set => SetProperty(ref _statutBarre, value);
+        set
+        {
+            if (!SetProperty(ref _statutBarre, value)) return;
+            _derniereActualisationLocale = DateTime.Now;
+            _statutEstErreur = ContientErreurStatut(value);
+            OnPropertyChanged(nameof(StatutBarreAffiche));
+            OnPropertyChanged(nameof(StatutBarreBrush));
+        }
+    }
+
+    public string StatutBarreAffiche
+    {
+        get
+        {
+            var heure = _derniereActualisationLocale.ToString("HH:mm");
+            if (_syncEnCours) return $"Synchronisation en cours · {heure}";
+            if (_statutEstErreur || !string.IsNullOrWhiteSpace(_syncErreur) &&
+                (_statutBarre?.Contains("échou", StringComparison.OrdinalIgnoreCase) == true ||
+                 _statutBarre?.Contains("impossible", StringComparison.OrdinalIgnoreCase) == true ||
+                 _statutBarre?.Contains("Échec", StringComparison.OrdinalIgnoreCase) == true ||
+                 _statutBarre?.Contains("non configur", StringComparison.OrdinalIgnoreCase) == true))
+                return $"{NettoyerPrefixeStatut(_statutBarre)} · {heure}";
+            if (string.Equals(_statutBarre, "Données actualisées", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_statutBarre, "Prêt", StringComparison.OrdinalIgnoreCase))
+                return $"Données à jour · {heure}";
+            return $"{NettoyerPrefixeStatut(_statutBarre)} · {heure}";
+        }
+    }
+
+    public Brush StatutBarreBrush =>
+        _syncEnCours ? new SolidColorBrush(Color.FromRgb(0xFF, 0xC2, 0x33))
+        : (_statutEstErreur ? new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x72))
+            : new SolidColorBrush(Color.FromRgb(0x35, 0xD3, 0x9A)));
+
+    private static bool ContientErreurStatut(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("échou", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("Échec", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("impossible", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("Erreur", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("invalide", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("non configur", StringComparison.OrdinalIgnoreCase));
+
+    private static string NettoyerPrefixeStatut(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "Données à jour";
+        return value.StartsWith("✓ ", StringComparison.Ordinal) ? value[2..] : value;
     }
 
     public string MessageErreur
@@ -116,7 +260,11 @@ public class MainViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _datePresence, value.Date))
+            {
+                OnPropertyChanged(nameof(DatePresenceLibelle));
                 ChargerPresenceJour();
+                NotifierHorlogeDashboard();
+            }
         }
     }
 
@@ -147,8 +295,35 @@ public class MainViewModel : ObservableObject
     public JourPresenceLigne? LigneJourSelectionnee
     {
         get => _ligneJourSelectionnee;
-        set => SetProperty(ref _ligneJourSelectionnee, value);
+        set
+        {
+            if (SetProperty(ref _ligneJourSelectionnee, value))
+            {
+                ChargerDetailSelection();
+                NotifierDetailUi();
+            }
+        }
     }
+
+    public bool DetailVisible => LigneJourSelectionnee != null;
+    public string DetailTitre => LigneJourSelectionnee == null
+        ? ""
+        : $"{LigneJourSelectionnee.NomComplet} · {LigneJourSelectionnee.Matricule}";
+    public string DetailNom => LigneJourSelectionnee?.NomComplet ?? "";
+    public string DetailMatricule => LigneJourSelectionnee?.Matricule ?? "";
+    public string DetailStatut => LigneJourSelectionnee?.StatutLibelle ?? "";
+    public string DetailEntree => LigneJourSelectionnee?.EntreeAffichee ?? "—";
+    public string DetailSortie => LigneJourSelectionnee?.SortieAffichee ?? "—";
+    public string DetailHeures => LigneJourSelectionnee == null || LigneJourSelectionnee.NbPointages == 0
+        ? "—"
+        : JourPresenceLigne.FormatHeures(LigneJourSelectionnee.Heures);
+    public string DetailHorairePrevu => $"{HeureDebutTravail} → {HeureFinTravail}";
+    public bool DetailPeutEntree => LigneJourSelectionnee?.PeutPointerEntree == true;
+    public bool DetailPeutSortie => LigneJourSelectionnee?.PeutPointerSortie == true;
+    public bool ListePresenceVide => CompteurAffiches == 0;
+    public string MessageListeVide => string.IsNullOrWhiteSpace(FiltrePresenceTexte) && FiltrePresenceStatut == "Tous"
+        ? "Aucun employé actif pour cette date."
+        : "Aucun résultat pour cette recherche ou ce filtre.";
 
     public string FiltreEmploye
     {
@@ -160,19 +335,369 @@ public class MainViewModel : ObservableObject
         }
     }
 
+    public string FiltrePresenceTexte
+    {
+        get => _filtrePresenceTexte;
+        set
+        {
+            if (SetProperty(ref _filtrePresenceTexte, value))
+                AppliquerFiltresPresence();
+        }
+    }
+
+    public string FiltrePresenceStatut
+    {
+        get => _filtrePresenceStatut;
+        set
+        {
+            if (SetProperty(ref _filtrePresenceStatut, value))
+            {
+                OnPropertyChanged(nameof(FiltreTousActif));
+                OnPropertyChanged(nameof(FiltrePresentsActif));
+                OnPropertyChanged(nameof(FiltreRetardsActif));
+                OnPropertyChanged(nameof(FiltreEnCoursActif));
+                OnPropertyChanged(nameof(FiltreAbsentsActif));
+                OnPropertyChanged(nameof(FiltreNonPointesActif));
+                OnPropertyChanged(nameof(FiltrePartisActif));
+                AppliquerFiltresPresence();
+            }
+        }
+    }
+
+    public bool FiltreTousActif => FiltrePresenceStatut == "Tous";
+    public bool FiltrePresentsActif => FiltrePresenceStatut is "Présent" or "Parti";
+    public bool FiltreRetardsActif => FiltrePresenceStatut == "Retard";
+    public bool FiltreEnCoursActif => FiltrePresenceStatut == "En cours";
+    public bool FiltreAbsentsActif => FiltrePresenceStatut is "Absent" or "Non pointé";
+    public bool FiltreNonPointesActif => FiltrePresenceStatut == "Non pointé";
+    public bool FiltrePartisActif => FiltrePresenceStatut == "Parti";
+
+    public bool PresenceListeAgrandie
+    {
+        get => _presenceListeAgrandie;
+        set
+        {
+            if (SetProperty(ref _presenceListeAgrandie, value))
+            {
+                OnPropertyChanged(nameof(PresenceAgrandirIcone));
+                OnPropertyChanged(nameof(PresenceAgrandirInfoBulle));
+            }
+        }
+    }
+
+    public string PresenceAgrandirIcone => PresenceListeAgrandie ? "\uE73F" : "\uE740";
+    public string PresenceAgrandirInfoBulle => PresenceListeAgrandie ? "Réduire la liste" : "Agrandir la liste";
+
+    public string EditionEntree
+    {
+        get => _editionEntree;
+        set => SetProperty(ref _editionEntree, value);
+    }
+
+    public string EditionSortie
+    {
+        get => _editionSortie;
+        set => SetProperty(ref _editionSortie, value);
+    }
+
+    public string NouveauPointageHeure
+    {
+        get => _nouveauPointageHeure;
+        set => SetProperty(ref _nouveauPointageHeure, value);
+    }
+
+    public Pointage? PointageDetailSelectionne
+    {
+        get => _pointageDetailSelectionne;
+        set => SetProperty(ref _pointageDetailSelectionne, value);
+    }
+
+    public string DatePresenceLibelle => DatePresence.ToString("dddd d MMMM yyyy");
+
     public int CompteurPresents { get; private set; }
     public int CompteurAbsents { get; private set; }
+    public int CompteurNonPointes { get; private set; }
     public int CompteurEnCours { get; private set; }
+    public int CompteurRetards { get; private set; }
     public int CompteurEmployesActifs { get; private set; }
+    public int CompteurAffiches { get; private set; }
+
+    public int CompteurPresencePointee { get; private set; }
+    public int CompteurSortis { get; private set; }
+    public bool AvantHeureLimite { get; private set; }
+    public bool ActiviteRecenteVide => PointagesRecents.Count == 0;
+    public bool PresenceJourVide => CompteurPresencePointee == 0;
+
+    public string CompteurPresentsContexte =>
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurPresents, CompteurEmployesActifs)} %";
+    public string CompteurRetardsContexte =>
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurRetards, CompteurEmployesActifs)} %";
+    public string CompteurEnCoursContexte => "Présents sur site";
+    public string CompteurEffectifContexte => "employés";
+    public string CompteurAbsentsContexte =>
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurAbsentsOuNonPointes, CompteurEmployesActifs)} %";
+
+    /// <summary>4e KPI : Non pointés avant tolérance, Absents après.</summary>
+    public int CompteurAbsentsOuNonPointes => AvantHeureLimite ? CompteurNonPointes : CompteurAbsents;
+    public string LabelAbsentsOuNonPointes => AvantHeureLimite ? "NON POINTÉS" : "ABSENTS";
+    public string LabelAbsentsOuNonPointesCourt => AvantHeureLimite ? "Non pointés" : "Absents";
+
+    public string PresenceAujourdhuiRatio => $"{CompteurPresencePointee} / {CompteurEmployesActifs}";
+    public double PresenceAujourdhuiPourcent =>
+        CompteurEmployesActifs <= 0 ? 0 : Math.Round(100.0 * CompteurPresencePointee / CompteurEmployesActifs, 0);
+    public string PresenceAujourdhuiPourcentTexte => $"{PresenceAujourdhuiPourcent:0} %";
+    public string PresenceAujourdhuiLibelle => CompteurPresencePointee == 0
+        ? "Aucun employé n'a encore pointé aujourd'hui."
+        : $"{PresenceAujourdhuiPourcent:0} % des employés ont pointé";
+    public string DateAujourdhuiCourt => DateTime.Today.ToString("dd/MM/yyyy");
+    public string DateAujourdhuiLibelle => $"Aujourd'hui {DateTime.Today:dd/MM/yyyy}";
+    public string DatePresenceHeader => DatePresence.ToString("dddd d MMMM yyyy");
+
+    public string HeureActuelle => DateTime.Now.ToString("HH:mm");
+    public string DateCourteActuelle => DateTime.Now.ToString("dddd d MMMM");
+    public string HeureDebutPause => HeureDebutPauseDefaut;
+    public string HeureFinPause => HeureFinPauseDefaut;
+
+    public string JourneeBadge
+    {
+        get
+        {
+            var now = DateTime.Now.TimeOfDay;
+            var debut = DebutTravailTs;
+            var fin = FinTravailTs;
+            if (now < debut) return "À venir";
+            if (now > fin) return "Terminée";
+            return "En cours";
+        }
+    }
+
+    public string TempsEcouleLibelle
+    {
+        get
+        {
+            var debut = DebutTravailTs;
+            var now = DateTime.Now.TimeOfDay;
+            if (now <= debut) return "00h 00min";
+            var ts = now - debut;
+            return $"{(int)ts.TotalHours:00}h {ts.Minutes:00}min";
+        }
+    }
+
+    public string TempsRestantLibelle
+    {
+        get
+        {
+            var fin = FinTravailTs;
+            var now = DateTime.Now.TimeOfDay;
+            if (now >= fin) return "00h 00min";
+            var debut = DebutTravailTs;
+            if (now < debut) now = debut;
+            var ts = fin - now;
+            return $"{(int)ts.TotalHours:00}h {ts.Minutes:00}min";
+        }
+    }
+
+    public double TimelineProgressPercent
+    {
+        get
+        {
+            var debut = DebutTravailTs;
+            var fin = FinTravailTs;
+            if (fin <= debut) return 0;
+
+            // Journée passée / future selon la date affichée
+            if (DatePresence.Date < DateTime.Today) return 100;
+            if (DatePresence.Date > DateTime.Today) return 0;
+
+            var now = DateTime.Now.TimeOfDay;
+            if (now <= debut) return 0;
+            if (now >= fin) return 100;
+            return Math.Clamp(100.0 * (now - debut).TotalMinutes / (fin - debut).TotalMinutes, 0, 100);
+        }
+    }
+
+    public string TimelineProgressLibelle =>
+        $"{TimelineProgressPercent:0} % · {HeureActuelle}";
+
+    public string TimelineHorlogeLibelle
+    {
+        get
+        {
+            var p = TimelineProgressPercent;
+            if (DatePresence.Date < DateTime.Today)
+                return "Journée terminée — progression 100 %.";
+            if (DatePresence.Date > DateTime.Today)
+                return "Journée à venir — progression 0 %.";
+            if (p <= 0)
+                return $"Avant le début ({HeureDebutTravail}) — progression 0 %.";
+            if (p >= 100)
+                return $"Journée terminée ({HeureFinTravail}) — progression 100 %.";
+            return $"Progression réelle {p:0}% · écoulé {TempsEcouleLibelle} · restant {TempsRestantLibelle}";
+        }
+    }
+
+    public string ZkPortSousTitre => $"Connexion réseau locale · port {ZkPort}";
+
+    public GridLength TimelineProgressStar =>
+        TimelineProgressPercent <= 0
+            ? new GridLength(0)
+            : new GridLength(TimelineProgressPercent, GridUnitType.Star);
+
+    public GridLength TimelineResteStar =>
+        TimelineProgressPercent >= 100
+            ? new GridLength(0)
+            : new GridLength(Math.Max(100 - TimelineProgressPercent, 0.001), GridUnitType.Star);
+
+    /// <summary>Segments proportionnels pour aligner Pause/Reprise sur la vraie échelle horaire.</summary>
+    public GridLength TimelineSegDebutPauseStar => TimelineSegmentStar(DebutTravailTs, PauseDebutTs);
+
+    public GridLength TimelineSegPauseRepriseStar => TimelineSegmentStar(PauseDebutTs, PauseFinTs);
+
+    public GridLength TimelineSegRepriseFinStar => TimelineSegmentStar(PauseFinTs, FinTravailTs);
+
+    private TimeSpan PauseDebutTs =>
+        PresenceCalculService.ParserHeure(HeureDebutPause, new TimeSpan(12, 0, 0));
+
+    private TimeSpan PauseFinTs =>
+        PresenceCalculService.ParserHeure(HeureFinPause, new TimeSpan(13, 0, 0));
+
+    private GridLength TimelineSegmentStar(TimeSpan from, TimeSpan to)
+    {
+        var debut = DebutTravailTs;
+        var fin = FinTravailTs;
+        if (fin <= debut) return new GridLength(1, GridUnitType.Star);
+
+        var a = TimeSpan.FromMinutes(Math.Clamp(from.TotalMinutes, debut.TotalMinutes, fin.TotalMinutes));
+        var b = TimeSpan.FromMinutes(Math.Clamp(to.TotalMinutes, debut.TotalMinutes, fin.TotalMinutes));
+        var minutes = Math.Max((b - a).TotalMinutes, 0.01);
+        return new GridLength(minutes, GridUnitType.Star);
+    }
+
+    public DoubleCollection PresenceDonutDash
+    {
+        get
+        {
+            const double radius = 42;
+            const double thickness = 9;
+            var c = 2 * Math.PI * radius / thickness;
+            var filled = Math.Max(0.001, c * PresenceAujourdhuiPourcent / 100.0);
+            return new DoubleCollection { filled, c };
+        }
+    }
+
+    public string NomUtilisateurAffiche => "Josue Luyeye";
+    public string RoleUtilisateurAffiche => "Administrateur";
+    public string InitialesUtilisateur => "JL";
+
+    public string TerminalCarteTitre => TerminalConfigure ? "Terminal connecté" : "Terminal non configuré";
+    public string TerminalCarteDetail => TerminalConfigure ? "Prêt pour le pointage." : "Configuration requise";
+    public Brush TerminalCarteBrush => TerminalConfigure
+        ? new SolidColorBrush(Color.FromRgb(0x35, 0xD3, 0x9A))
+        : new SolidColorBrush(Color.FromRgb(0xFF, 0xC2, 0x33));
+
+    public string PiedSyncDetail =>
+        !_derniereSyncUtc.HasValue
+            ? "Dernière synchronisation : jamais"
+            : $"Dernière synchronisation : {SyncStatutDetail.ToLowerInvariant()}";
+
+    private static int Pourcent(int part, int total) =>
+        total <= 0 ? 0 : (int)Math.Round(100.0 * part / total);
+
+    public bool TerminalConfigure => !string.IsNullOrWhiteSpace(ZkIp);
+    public bool TerminalAlerteVisible => !TerminalConfigure;
+    public string SyncStatutTitre
+    {
+        get
+        {
+            if (_syncEnCours) return "Synchronisation en cours…";
+            if (!string.IsNullOrWhiteSpace(_syncErreur)) return "Synchronisation impossible";
+            if (!_derniereSyncUtc.HasValue) return "Jamais synchronisé";
+            return "Synchronisé";
+        }
+    }
+
+    public string SyncStatutDetail
+    {
+        get
+        {
+            if (_syncEnCours) return "Récupération des pointages…";
+            if (!string.IsNullOrWhiteSpace(_syncErreur)) return _syncErreur;
+            if (!_derniereSyncUtc.HasValue) return "Configurez puis lancez une sync";
+            var local = _derniereSyncUtc.Value.ToLocalTime();
+            var age = DateTime.Now - local;
+            if (age.TotalMinutes < 1) return "À l’instant";
+            if (age.TotalMinutes < 60) return $"Il y a {(int)age.TotalMinutes} min";
+            if (age.TotalHours < 24) return $"Il y a {(int)age.TotalHours} h";
+            return local.ToString("dd/MM HH:mm");
+        }
+    }
+
+    public Brush SyncStatutBrush
+    {
+        get
+        {
+            if (_syncEnCours) return new SolidColorBrush(Color.FromRgb(0xFF, 0xC2, 0x33));
+            if (!string.IsNullOrWhiteSpace(_syncErreur) || !_derniereSyncUtc.HasValue)
+                return new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x72));
+            return new SolidColorBrush(Color.FromRgb(0x35, 0xD3, 0x9A));
+        }
+    }
 
     public string NomEntreprise { get => _nomEntreprise; set => SetProperty(ref _nomEntreprise, value); }
     public string ZkIp { get => _zkIp; set => SetProperty(ref _zkIp, value); }
-    public string ZkPort { get => _zkPort; set => SetProperty(ref _zkPort, value); }
+    public string ZkPort
+    {
+        get => _zkPort;
+        set
+        {
+            if (SetProperty(ref _zkPort, value))
+                OnPropertyChanged(nameof(ZkPortSousTitre));
+        }
+    }
     public string ZkMachine { get => _zkMachine; set => SetProperty(ref _zkMachine, value); }
     public string ZkCommPwd { get => _zkCommPwd; set => SetProperty(ref _zkCommPwd, value); }
     public bool ZkSyncActif { get => _zkSyncActif; set => SetProperty(ref _zkSyncActif, value); }
     public string ZkIntervalle { get => _zkIntervalle; set => SetProperty(ref _zkIntervalle, value); }
     public string ZkDerniereSync { get => _zkDerniereSync; set => SetProperty(ref _zkDerniereSync, value); }
+
+    public bool NotificationsWindowsActives
+    {
+        get => _notificationsWindowsActives;
+        set => SetProperty(ref _notificationsWindowsActives, value);
+    }
+
+    public bool DemarrerAvecWindows
+    {
+        get => _demarrerAvecWindows;
+        set => SetProperty(ref _demarrerAvecWindows, value);
+    }
+    public string HeureDebutTravail
+    {
+        get => _heureDebut;
+        set
+        {
+            if (SetProperty(ref _heureDebut, value))
+            {
+                OnPropertyChanged(nameof(DetailHorairePrevu));
+                NotifierHorlogeDashboard();
+            }
+        }
+    }
+
+    public string HeureLimiteTolerance { get => _heureLimite; set => SetProperty(ref _heureLimite, value); }
+
+    public string HeureFinTravail
+    {
+        get => _heureFin;
+        set
+        {
+            if (SetProperty(ref _heureFin, value))
+            {
+                OnPropertyChanged(nameof(DetailHorairePrevu));
+                NotifierHorlogeDashboard();
+            }
+        }
+    }
 
     public ICommand NaviguerCommand { get; }
     public ICommand RafraichirCommand { get; }
@@ -189,6 +714,44 @@ public class MainViewModel : ObservableObject
     public ICommand ExportPdfJourCommand { get; }
     public ICommand ExportExcelMoisCommand { get; }
     public ICommand ExportPdfMoisCommand { get; }
+    public ICommand JourPrecedentCommand { get; }
+    public ICommand JourSuivantCommand { get; }
+    public ICommand JourAujourdhuiCommand { get; }
+    public ICommand FiltrerStatutCommand { get; }
+    public ICommand OuvrirPresenceFiltreCommand { get; }
+    public ICommand AppliquerHorairesCommand { get; }
+    public ICommand PresenceStandardCommand { get; }
+    public ICommand AjouterPointageHeureCommand { get; }
+    public ICommand SupprimerDernierPointageCommand { get; }
+    public ICommand SupprimerJourneeCommand { get; }
+    public ICommand SupprimerPointageDetailCommand { get; }
+    public ICommand MarquerAbsentCommand { get; }
+    public ICommand BasculerPresenceAgrandieCommand { get; }
+    public ICommand ExportCsvJourCommand { get; }
+    public ICommand ConfigurerTerminalCommand { get; }
+    public ICommand TesterNotificationCommand { get; }
+    public ICommand VerifierMiseAJourCommand { get; }
+
+    public string VersionApplication =>
+        ApplicationUpdateService.FormaterVersion(ApplicationUpdateService.ObtenirVersionInstallee());
+
+    private bool _miseAJourEnCours;
+    public bool MiseAJourEnCours
+    {
+        get => _miseAJourEnCours;
+        set
+        {
+            if (SetProperty(ref _miseAJourEnCours, value))
+                CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private string _messageMiseAJour = "Vérifiez périodiquement les nouvelles versions LT Présence.";
+    public string MessageMiseAJour
+    {
+        get => _messageMiseAJour;
+        set => SetProperty(ref _messageMiseAJour, value);
+    }
 
     public void RafraichirTout()
     {
@@ -196,7 +759,61 @@ public class MainViewModel : ObservableObject
         ChargerPresenceJour();
         ChargerAccueil();
         ChargerParametres();
-        StatutBarre = "Données actualisées";
+        ActualiserEtatSync();
+        StatutBarre = "Données à jour";
+    }
+
+    private void NotifierDetailUi()
+    {
+        OnPropertyChanged(nameof(DetailVisible));
+        OnPropertyChanged(nameof(DetailTitre));
+        OnPropertyChanged(nameof(DetailNom));
+        OnPropertyChanged(nameof(DetailMatricule));
+        OnPropertyChanged(nameof(DetailStatut));
+        OnPropertyChanged(nameof(DetailEntree));
+        OnPropertyChanged(nameof(DetailSortie));
+        OnPropertyChanged(nameof(DetailHeures));
+        OnPropertyChanged(nameof(DetailHorairePrevu));
+        OnPropertyChanged(nameof(DetailPeutEntree));
+        OnPropertyChanged(nameof(DetailPeutSortie));
+        (PointerEntreeCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (PointerSortieCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (AppliquerHorairesCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private void ActualiserEtatSync()
+    {
+        OnPropertyChanged(nameof(SyncStatutTitre));
+        OnPropertyChanged(nameof(SyncStatutDetail));
+        OnPropertyChanged(nameof(SyncStatutBrush));
+        OnPropertyChanged(nameof(TerminalConfigure));
+        OnPropertyChanged(nameof(TerminalAlerteVisible));
+        OnPropertyChanged(nameof(TerminalCarteTitre));
+        OnPropertyChanged(nameof(TerminalCarteDetail));
+        OnPropertyChanged(nameof(TerminalCarteBrush));
+        OnPropertyChanged(nameof(PiedSyncDetail));
+        OnPropertyChanged(nameof(StatutBarreAffiche));
+        OnPropertyChanged(nameof(StatutBarreBrush));
+    }
+
+    private void NotifierHorlogeDashboard()
+    {
+        OnPropertyChanged(nameof(HeureActuelle));
+        OnPropertyChanged(nameof(DateCourteActuelle));
+        OnPropertyChanged(nameof(JourneeBadge));
+        OnPropertyChanged(nameof(TempsEcouleLibelle));
+        OnPropertyChanged(nameof(TempsRestantLibelle));
+        OnPropertyChanged(nameof(TimelineProgressPercent));
+        OnPropertyChanged(nameof(TimelineProgressLibelle));
+        OnPropertyChanged(nameof(TimelineHorlogeLibelle));
+        OnPropertyChanged(nameof(TimelineProgressStar));
+        OnPropertyChanged(nameof(TimelineResteStar));
+        OnPropertyChanged(nameof(TimelineSegDebutPauseStar));
+        OnPropertyChanged(nameof(TimelineSegPauseRepriseStar));
+        OnPropertyChanged(nameof(TimelineSegRepriseFinStar));
+        OnPropertyChanged(nameof(StatutBarreAffiche));
+        OnPropertyChanged(nameof(PiedSyncDetail));
+        OnPropertyChanged(nameof(SyncStatutDetail));
     }
 
     private void ChargerEmployes()
@@ -219,6 +836,7 @@ public class MainViewModel : ObservableObject
 
     private void ChargerPresenceJour()
     {
+        var selectedId = LigneJourSelectionnee?.EmployeId;
         using var db = new PresenceDbContext();
         var employes = db.Employes.AsNoTracking().ToList();
         var debut = DatePresence.Date;
@@ -226,16 +844,202 @@ public class MainViewModel : ObservableObject
         var pts = db.Pointages.AsNoTracking()
             .Where(p => p.Horodatage >= debut && p.Horodatage < fin)
             .ToList();
-        var lignes = PresenceCalculService.CalculerJourPourTous(employes, pts, DatePresence);
-        PresenceJour.Clear();
-        foreach (var l in lignes) PresenceJour.Add(l);
+        var (hDebut, hLimite) = LireHoraires(db);
+        _presenceJourBrute = PresenceCalculService.CalculerJourPourTous(employes, pts, DatePresence, hDebut, hLimite).ToList();
 
-        CompteurPresents = lignes.Count(x => x.Statut == "Présent");
-        CompteurEnCours = lignes.Count(x => x.Statut == "En cours");
-        CompteurAbsents = lignes.Count(x => x.Statut == "Absent");
+        // Présents = ont pointé à l'heure (en cours ou journée terminée), hors retards.
+        CompteurPresents = _presenceJourBrute.Count(x => x.Statut is "Parti" or "Présent" or "En cours");
+        CompteurEnCours = _presenceJourBrute.Count(x => x.Statut == "En cours");
+        CompteurRetards = _presenceJourBrute.Count(x => x.EstEnRetard);
+        CompteurAbsents = _presenceJourBrute.Count(x => x.Statut == "Absent");
+        CompteurNonPointes = _presenceJourBrute.Count(x => x.Statut == "Non pointé");
+        CompteurPresencePointee = _presenceJourBrute.Count(x => x.NbPointages > 0);
+        CompteurSortis = _presenceJourBrute.Count(x => x.Statut == "Parti");
+        AvantHeureLimite = DatePresence.Date == DateTime.Today && DateTime.Now.TimeOfDay < hLimite;
         OnPropertyChanged(nameof(CompteurPresents));
         OnPropertyChanged(nameof(CompteurEnCours));
+        OnPropertyChanged(nameof(CompteurRetards));
         OnPropertyChanged(nameof(CompteurAbsents));
+        OnPropertyChanged(nameof(CompteurNonPointes));
+        OnPropertyChanged(nameof(CompteurPresencePointee));
+        OnPropertyChanged(nameof(CompteurSortis));
+        OnPropertyChanged(nameof(AvantHeureLimite));
+        OnPropertyChanged(nameof(CompteurAbsentsOuNonPointes));
+        OnPropertyChanged(nameof(LabelAbsentsOuNonPointes));
+        OnPropertyChanged(nameof(LabelAbsentsOuNonPointesCourt));
+        OnPropertyChanged(nameof(CompteurPresentsContexte));
+        OnPropertyChanged(nameof(CompteurRetardsContexte));
+        OnPropertyChanged(nameof(CompteurEnCoursContexte));
+        OnPropertyChanged(nameof(CompteurEffectifContexte));
+        OnPropertyChanged(nameof(CompteurAbsentsContexte));
+        OnPropertyChanged(nameof(PresenceAujourdhuiRatio));
+        OnPropertyChanged(nameof(PresenceAujourdhuiPourcent));
+        OnPropertyChanged(nameof(PresenceAujourdhuiPourcentTexte));
+        OnPropertyChanged(nameof(PresenceAujourdhuiLibelle));
+        OnPropertyChanged(nameof(PresenceJourVide));
+        OnPropertyChanged(nameof(PresenceDonutDash));
+        OnPropertyChanged(nameof(DateAujourdhuiCourt));
+        OnPropertyChanged(nameof(DateAujourdhuiLibelle));
+        OnPropertyChanged(nameof(DatePresenceHeader));
+        OnPropertyChanged(nameof(DatePresenceLibelle));
+        NotifierHorlogeDashboard();
+
+        AppliquerFiltresPresence();
+
+        if (selectedId.HasValue)
+        {
+            LigneJourSelectionnee = PresenceJour.FirstOrDefault(x => x.EmployeId == selectedId.Value)
+                                    ?? _presenceJourBrute.FirstOrDefault(x => x.EmployeId == selectedId.Value);
+        }
+        else
+        {
+            ChargerDetailSelection();
+            NotifierDetailUi();
+        }
+    }
+
+    private void AppliquerFiltresPresence()
+    {
+        IEnumerable<JourPresenceLigne> q = _presenceJourBrute;
+        if (!string.IsNullOrWhiteSpace(FiltrePresenceTexte))
+        {
+            var f = FiltrePresenceTexte.Trim();
+            q = q.Where(x =>
+                x.NomComplet.Contains(f, StringComparison.OrdinalIgnoreCase) ||
+                x.Matricule.Contains(f, StringComparison.OrdinalIgnoreCase));
+        }
+
+        q = FiltrePresenceStatut switch
+        {
+            "Présent" or "Parti" => q.Where(x => x.Statut is "Parti" or "Présent" or "En cours"),
+            "Retard" => q.Where(x => x.EstEnRetard),
+            "En cours" => q.Where(x => x.Statut == "En cours"),
+            "Absent" => q.Where(x => x.Statut == "Absent"),
+            "Non pointé" => q.Where(x => x.Statut == "Non pointé"),
+            _ => q
+        };
+
+        var list = q.ToList();
+        PresenceJour.Clear();
+        foreach (var l in list) PresenceJour.Add(l);
+        CompteurAffiches = list.Count;
+        OnPropertyChanged(nameof(CompteurAffiches));
+        OnPropertyChanged(nameof(ListePresenceVide));
+        OnPropertyChanged(nameof(MessageListeVide));
+    }
+
+    private void ChargerDetailSelection()
+    {
+        PointagesDetail.Clear();
+        PointageDetailSelectionne = null;
+        if (LigneJourSelectionnee == null)
+        {
+            EditionEntree = HeureDebutTravail;
+            EditionSortie = HeureFinTravail;
+            return;
+        }
+
+        EditionEntree = LigneJourSelectionnee.PremiereEntree?.ToString("HH:mm") ?? HeureDebutTravail;
+        EditionSortie = LigneJourSelectionnee.DerniereSortie?.ToString("HH:mm") ?? HeureFinTravail;
+        NouveauPointageHeure = DateTime.Now.ToString("HH:mm");
+
+        var pts = new PointageService().ListerDuJour(LigneJourSelectionnee.EmployeId, DatePresence);
+        foreach (var p in pts) PointagesDetail.Add(p);
+    }
+
+    private void AppliquerHorairesJournee()
+    {
+        if (LigneJourSelectionnee == null) return;
+        var entree = PresenceCalculService.ParserHeure(EditionEntree, DebutTravailTs);
+        TimeSpan? sortie = null;
+        if (!string.IsNullOrWhiteSpace(EditionSortie))
+            sortie = PresenceCalculService.ParserHeure(EditionSortie, FinTravailTs);
+
+        if (sortie.HasValue && sortie.Value <= entree)
+        {
+            MessageBox.Show("La sortie doit être après l’entrée.", "Présence");
+            return;
+        }
+
+        new PointageService().DefinirJournee(LigneJourSelectionnee.EmployeId, DatePresence, entree, sortie);
+        ChargerPresenceJour();
+        StatutBarre = $"✓ Correction enregistrée pour {LigneJourSelectionnee?.NomComplet}";
+    }
+
+    private void AppliquerPresenceStandard()
+    {
+        if (LigneJourSelectionnee == null) return;
+        var debut = DebutTravailTs;
+        var fin = FinTravailTs;
+        new PointageService().DefinirJournee(LigneJourSelectionnee.EmployeId, DatePresence, debut, fin);
+        ChargerPresenceJour();
+        StatutBarre = $"Présence standard appliquée ({PresenceCalculService.FormatHhMm(debut)} → {PresenceCalculService.FormatHhMm(fin)})";
+    }
+
+    private void AjouterPointageHeurePrecise()
+    {
+        if (LigneJourSelectionnee == null) return;
+        var heure = PresenceCalculService.ParserHeure(
+            string.IsNullOrWhiteSpace(NouveauPointageHeure) ? DateTime.Now.ToString("HH:mm") : NouveauPointageHeure,
+            DateTime.Now.TimeOfDay);
+        var when = DatePresence.Date.Add(heure);
+        var type = PointagesDetail.Count % 2 == 0 ? PointageType.Entree : PointageType.Sortie;
+        new PointageService().EnregistrerManuel(LigneJourSelectionnee.EmployeId, when, type);
+        ChargerPresenceJour();
+        StatutBarre = $"Pointage ajouté à {heure:hh\\:mm}";
+    }
+
+    private void SupprimerDernierPointage()
+    {
+        if (LigneJourSelectionnee == null) return;
+        if (!new PointageService().SupprimerDernierDuJour(LigneJourSelectionnee.EmployeId, DatePresence))
+        {
+            MessageBox.Show("Aucun pointage à supprimer.", "Présence");
+            return;
+        }
+
+        ChargerPresenceJour();
+        StatutBarre = "Dernier pointage supprimé";
+    }
+
+    private void SupprimerJournee()
+    {
+        if (LigneJourSelectionnee == null) return;
+        if (MessageBox.Show(
+                $"Effacer tous les pointages de {LigneJourSelectionnee.NomComplet} le {DatePresence:dd/MM/yyyy} ?",
+                "Confirmation", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+            return;
+
+        var n = new PointageService().SupprimerTousDuJour(LigneJourSelectionnee.EmployeId, DatePresence);
+        ChargerPresenceJour();
+        StatutBarre = $"{n} pointage(s) effacé(s)";
+    }
+
+    private void SupprimerPointageDetail()
+    {
+        if (PointageDetailSelectionne == null) return;
+        new PointageService().Supprimer(PointageDetailSelectionne.Id);
+        ChargerPresenceJour();
+        StatutBarre = "Pointage supprimé";
+    }
+
+    private void MarquerAbsent()
+    {
+        if (LigneJourSelectionnee == null) return;
+        if (MessageBox.Show(
+                $"Marquer {LigneJourSelectionnee.NomComplet} absent (effacer les pointages du jour) ?",
+                "Confirmation", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+            return;
+
+        new PointageService().SupprimerTousDuJour(LigneJourSelectionnee.EmployeId, DatePresence);
+        ChargerPresenceJour();
+        StatutBarre = "Marqué absent";
+    }
+
+    private static (TimeSpan Debut, TimeSpan Limite) LireHoraires(PresenceDbContext db)
+    {
+        var p = db.Parametres.AsNoTracking().FirstOrDefault(x => x.Id == ParametresApplication.SingletonId);
+        return PresenceCalculService.LireHoraires(p);
     }
 
     private void ChargerAccueil()
@@ -245,10 +1049,11 @@ public class MainViewModel : ObservableObject
         var recents = db.Pointages.AsNoTracking()
             .Include(p => p.Employe)
             .OrderByDescending(p => p.Horodatage)
-            .Take(15)
+            .Take(6)
             .ToList();
         PointagesRecents.Clear();
         foreach (var p in recents) PointagesRecents.Add(p);
+        OnPropertyChanged(nameof(ActiviteRecenteVide));
     }
 
     private void ChargerRapportMois()
@@ -260,9 +1065,10 @@ public class MainViewModel : ObservableObject
         var pts = db.Pointages.AsNoTracking()
             .Where(p => p.Horodatage >= debut && p.Horodatage < fin)
             .ToList();
-        var resume = PresenceCalculService.ResumeMensuel(employes, pts, AnneeRapport, MoisRapport);
+        var (hDebut, hLimite) = LireHoraires(db);
+        var resume = PresenceCalculService.ResumeMensuel(employes, pts, AnneeRapport, MoisRapport, hDebut, hLimite);
         ResumeMois.Clear();
-        foreach (var (emp, jours, heures, abs) in resume)
+        foreach (var (emp, jours, heures, abs, retards) in resume)
         {
             ResumeMois.Add(new ResumeMoisItem
             {
@@ -270,7 +1076,8 @@ public class MainViewModel : ObservableObject
                 NomComplet = emp.NomComplet,
                 JoursPresents = jours,
                 HeuresTotales = heures,
-                Absences = abs
+                Absences = abs,
+                Retards = retards
             });
         }
     }
@@ -300,7 +1107,7 @@ public class MainViewModel : ObservableObject
         if (EmployeEdition == null) return;
         if (string.IsNullOrWhiteSpace(EmployeEdition.Matricule) || string.IsNullOrWhiteSpace(EmployeEdition.Nom))
         {
-            MessageBox.Show("Matricule et nom sont obligatoires.", "Melody Présence");
+            MessageBox.Show("Matricule et nom sont obligatoires.", "LT Services");
             return;
         }
 
@@ -311,7 +1118,7 @@ public class MainViewModel : ObservableObject
             {
                 if (db.Employes.Any(e => e.Matricule == EmployeEdition.Matricule.Trim()))
                 {
-                    MessageBox.Show("Ce matricule existe déjà.", "Melody Présence");
+                    MessageBox.Show("Ce matricule existe déjà.", "LT Services");
                     return;
                 }
 
@@ -329,7 +1136,7 @@ public class MainViewModel : ObservableObject
                 var e = db.Employes.First(x => x.Id == EmployeEdition.Id);
                 if (db.Employes.Any(x => x.Matricule == EmployeEdition.Matricule.Trim() && x.Id != e.Id))
                 {
-                    MessageBox.Show("Ce matricule existe déjà.", "Melody Présence");
+                    MessageBox.Show("Ce matricule existe déjà.", "LT Services");
                     return;
                 }
 
@@ -380,24 +1187,36 @@ public class MainViewModel : ObservableObject
             : DatePresence.Date.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute);
         new PointageService().EnregistrerManuel(LigneJourSelectionnee.EmployeId, now, type);
         ChargerPresenceJour();
-        StatutBarre = type == PointageType.Entree ? "Entrée enregistrée" : "Sortie enregistrée";
+        StatutBarre = type == PointageType.Entree
+            ? $"✓ Entrée enregistrée à {now:HH:mm}"
+            : $"✓ Sortie enregistrée à {now:HH:mm}";
     }
 
     private async Task SynchroniserZkAsync()
     {
-        StatutBarre = "Synchronisation pointeuse…";
+        _syncEnCours = true;
+        _syncErreur = "";
+        ActualiserEtatSync();
+        StatutBarre = "Synchronisation en cours…";
         var (ok, err, nb) = await ZktecoSynchronisationService.TrySynchroniserAsync();
+        _syncEnCours = false;
         if (!ok)
         {
-            MessageBox.Show(err ?? "Échec synchronisation", "ZKTeco");
-            StatutBarre = err ?? "Échec";
+            _syncErreur = err ?? "Échec synchronisation";
+            ActualiserEtatSync();
+            WindowsNotificationService.NotifierSyncErreur(_syncErreur);
+            MessageBox.Show(_syncErreur, "ZKTeco");
+            StatutBarre = "Synchronisation échouée";
             return;
         }
 
+        _syncErreur = "";
         ChargerPresenceJour();
         ChargerAccueil();
         ChargerParametres();
-        StatutBarre = $"Synchronisation OK — {nb} nouveau(x) pointage(s)";
+        ActualiserEtatSync();
+        StatutBarre = $"✓ Synchronisation terminée — {nb} nouveau(x) pointage(s)";
+        // Toast cinéma déjà émis via SynchroReussie
     }
 
     private void ChargerParametres()
@@ -412,9 +1231,28 @@ public class MainViewModel : ObservableObject
         ZkCommPwd = p.ZkCommPassword == 0 ? "000000" : p.ZkCommPassword.ToString();
         ZkSyncActif = p.ZkSyncActif;
         ZkIntervalle = (p.ZkIntervalleSecondes <= 0 ? 60 : p.ZkIntervalleSecondes).ToString();
+        _derniereSyncUtc = p.ZkDerniereSyncUtc;
         ZkDerniereSync = p.ZkDerniereSyncUtc.HasValue
             ? p.ZkDerniereSyncUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
             : "Jamais";
+        HeureDebutTravail = string.IsNullOrWhiteSpace(p.HeureDebutTravail)
+            ? PresenceCalculService.FormatHhMm(PresenceCalculService.HeureDebutDefaut)
+            : p.HeureDebutTravail;
+        HeureLimiteTolerance = string.IsNullOrWhiteSpace(p.HeureLimiteTolerance)
+            ? PresenceCalculService.FormatHhMm(PresenceCalculService.HeureLimiteDefaut)
+            : p.HeureLimiteTolerance;
+        HeureFinTravail = string.IsNullOrWhiteSpace(p.HeureFinTravail)
+            ? PresenceCalculService.FormatHhMm(PresenceCalculService.HeureFinDefaut)
+            : p.HeureFinTravail;
+        NotificationsWindowsActives = p.NotificationsWindowsActives;
+        DemarrerAvecWindows = p.DemarrerAvecWindows;
+        if (LigneJourSelectionnee == null)
+        {
+            EditionEntree = HeureDebutTravail;
+            EditionSortie = HeureFinTravail;
+        }
+
+        ActualiserEtatSync();
     }
 
     private void SauverParametres()
@@ -445,23 +1283,122 @@ public class MainViewModel : ObservableObject
 
         using var db = new PresenceDbContext();
         var p = db.Parametres.First(x => x.Id == ParametresApplication.SingletonId);
-        p.NomEntreprise = string.IsNullOrWhiteSpace(NomEntreprise) ? "Mon entreprise" : NomEntreprise.Trim();
+        p.NomEntreprise = string.IsNullOrWhiteSpace(NomEntreprise) ? "LT Services" : NomEntreprise.Trim();
         p.ZkTerminalIp = string.IsNullOrWhiteSpace(ZkIp) ? null : ZkIp.Trim();
         p.ZkTerminalPort = port;
         p.ZkMachineNumber = machine;
         p.ZkCommPassword = comm;
         p.ZkSyncActif = ZkSyncActif;
         p.ZkIntervalleSecondes = intervalle;
+        p.NotificationsWindowsActives = NotificationsWindowsActives;
+        p.DemarrerAvecWindows = DemarrerAvecWindows;
+        p.HeureDebutTravail = PresenceCalculService.FormatHhMm(DebutTravailTs);
+        p.HeureLimiteTolerance = PresenceCalculService.FormatHhMm(LimiteToleranceTs);
+        p.HeureFinTravail = PresenceCalculService.FormatHhMm(FinTravailTs);
+        HeureFinTravail = p.HeureFinTravail;
+        HeureDebutTravail = p.HeureDebutTravail;
+        HeureLimiteTolerance = p.HeureLimiteTolerance;
+        if (LigneJourSelectionnee == null)
+        {
+            EditionEntree = HeureDebutTravail;
+            EditionSortie = HeureFinTravail;
+        }
+
         db.SaveChanges();
+        DemarrageWindowsService.Appliquer(DemarrerAvecWindows);
         ZktecoSynchronisationService.Reconfigurer();
+        ChargerPresenceJour();
+        ChargerDetailSelection();
+        NotifierDetailUi();
         StatutBarre = "Paramètres enregistrés";
-        MessageBox.Show("Paramètres enregistrés.", "Melody Présence");
+        MessageBox.Show("Paramètres enregistrés.", "LT Services");
+    }
+
+    private async Task VerifierMiseAJourAsync()
+    {
+        if (MiseAJourEnCours)
+            return;
+
+        MiseAJourEnCours = true;
+        MessageMiseAJour = "Vérification en cours…";
+        StatutBarre = "Vérification des mises à jour…";
+        try
+        {
+            var result = await ApplicationUpdateService.VerifierAsync().ConfigureAwait(true);
+            MessageMiseAJour = result.Message;
+
+            if (result.Kind == UpdateCheckResultKind.UpToDate)
+            {
+                StatutBarre = "✓ " + result.Message;
+                MessageBox.Show(result.Message, "Mise à jour — LT Présence",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (result.Kind == UpdateCheckResultKind.Error || result.Manifest == null)
+            {
+                StatutBarre = result.Message;
+                MessageBox.Show(result.Message, "Mise à jour — LT Présence",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var notes = string.IsNullOrWhiteSpace(result.Manifest.ReleaseNotes)
+                ? ""
+                : "\n\n" + result.Manifest.ReleaseNotes.Trim();
+            var ok = MessageBox.Show(
+                result.Message + notes + "\n\nTélécharger et installer maintenant ?",
+                "Mise à jour disponible",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (ok != MessageBoxResult.Yes)
+            {
+                StatutBarre = "Mise à jour reportée";
+                return;
+            }
+
+            MessageMiseAJour = "Téléchargement…";
+            StatutBarre = "Téléchargement de la mise à jour…";
+            var progress = new Progress<double>(p =>
+                MessageMiseAJour = $"Téléchargement… {p:0}%");
+            var dl = await ApplicationUpdateService
+                .TelechargerAsync(result.Manifest, progress)
+                .ConfigureAwait(true);
+            if (!dl.Success || string.IsNullOrWhiteSpace(dl.CheminInstallateur))
+            {
+                MessageMiseAJour = dl.Message;
+                StatutBarre = dl.Message;
+                MessageBox.Show(dl.Message, "Mise à jour — LT Présence",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!ApplicationUpdateService.LancerInstallateur(dl.CheminInstallateur, out var msg))
+            {
+                MessageMiseAJour = msg;
+                MessageBox.Show(msg, "Mise à jour — LT Présence",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            MessageMiseAJour = "Installateur lancé — suivez l’assistant.";
+            StatutBarre = "✓ Installateur de mise à jour lancé";
+            MessageBox.Show(
+                "L’installateur va s’ouvrir. Fermez LT Présence si l’assistant le demande, puis terminez l’installation.",
+                "Mise à jour — LT Présence",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        finally
+        {
+            MiseAJourEnCours = false;
+        }
     }
 
     private string NomEntrepriseCourant()
     {
         using var db = new PresenceDbContext();
-        return db.Parametres.AsNoTracking().FirstOrDefault()?.NomEntreprise ?? "Mon entreprise";
+        return db.Parametres.AsNoTracking().FirstOrDefault()?.NomEntreprise ?? "LT Services";
     }
 
     private void ExporterExcelJour()
@@ -472,8 +1409,20 @@ public class MainViewModel : ObservableObject
             FileName = $"Presence_{DatePresence:yyyyMMdd}.xlsx"
         };
         if (dlg.ShowDialog() != true) return;
-        PresenceExportService.ExporterExcelDetailJour(dlg.FileName, NomEntrepriseCourant(), DatePresence, PresenceJour.ToList());
-        StatutBarre = "Export Excel jour OK";
+        PresenceExportService.ExporterExcelDetailJour(dlg.FileName, NomEntrepriseCourant(), DatePresence, _presenceJourBrute);
+        StatutBarre = "✓ Export Excel terminé";
+    }
+
+    private void ExporterCsvJour()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Filter = "CSV (*.csv)|*.csv",
+            FileName = $"Presence_{DatePresence:yyyyMMdd}.csv"
+        };
+        if (dlg.ShowDialog() != true) return;
+        PresenceExportService.ExporterCsvDetailJour(dlg.FileName, NomEntrepriseCourant(), DatePresence, _presenceJourBrute);
+        StatutBarre = "✓ Export CSV terminé";
     }
 
     private void ExporterPdfJour()
@@ -484,7 +1433,7 @@ public class MainViewModel : ObservableObject
             FileName = $"Presence_{DatePresence:yyyyMMdd}.pdf"
         };
         if (dlg.ShowDialog() != true) return;
-        PresenceExportService.ExporterPdfDetailJour(dlg.FileName, NomEntrepriseCourant(), DatePresence, PresenceJour.ToList());
+        PresenceExportService.ExporterPdfDetailJour(dlg.FileName, NomEntrepriseCourant(), DatePresence, _presenceJourBrute);
         StatutBarre = "Export PDF jour OK";
     }
 
@@ -501,7 +1450,8 @@ public class MainViewModel : ObservableObject
             new Employe { Matricule = r.Matricule, Nom = r.NomComplet },
             r.JoursPresents,
             r.HeuresTotales,
-            r.Absences)).ToList();
+            r.Absences,
+            r.Retards)).ToList();
         PresenceExportService.ExporterExcelResumeMois(dlg.FileName, NomEntrepriseCourant(), AnneeRapport, MoisRapport, data);
         StatutBarre = "Export Excel mois OK";
     }
@@ -519,7 +1469,8 @@ public class MainViewModel : ObservableObject
             new Employe { Matricule = r.Matricule, Nom = r.NomComplet },
             r.JoursPresents,
             r.HeuresTotales,
-            r.Absences)).ToList();
+            r.Absences,
+            r.Retards)).ToList();
         PresenceExportService.ExporterPdfResumeMois(dlg.FileName, NomEntrepriseCourant(), AnneeRapport, MoisRapport, data);
         StatutBarre = "Export PDF mois OK";
     }
@@ -532,4 +1483,5 @@ public class ResumeMoisItem
     public int JoursPresents { get; set; }
     public double HeuresTotales { get; set; }
     public int Absences { get; set; }
+    public int Retards { get; set; }
 }

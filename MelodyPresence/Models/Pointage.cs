@@ -21,4 +21,13 @@ public class Pointage
     public DateTime Horodatage { get; set; }
     public PointageSource Source { get; set; }
     public PointageType Type { get; set; }
+
+    public string TypeLibelle => Type switch
+    {
+        PointageType.Entree => "Entrée",
+        PointageType.Sortie => "Sortie",
+        _ => "—"
+    };
+
+    public string SourceLibelle => Source == PointageSource.Terminal ? "Terminal" : "Manuel";
 }

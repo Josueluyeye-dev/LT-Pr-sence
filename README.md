@@ -1,8 +1,8 @@
-# Melody Présence
+# LT Services Présence
 
 Logiciel simple de **gestion de présence** (employés, pointage manuel, pointeuse ZKTeco, rapports jour/mois, export PDF/Excel).
 
-Indépendant de **Melody Paie RDC**. Les modules métier (congés, paie, etc.) seront ajoutés progressivement.
+Produit **LT Services** — Présence. Indépendant de **Melody Paie RDC**. Les modules métier (congés, paie, etc.) seront ajoutés progressivement.
 
 ## Prérequis
 
@@ -38,7 +38,7 @@ dotnet test MelodyPresence.sln -c Release
 ## Schéma de connexion pointeuse
 
 ```text
-Pointeuse ZKTeco  --TCP/IP:4370-->  ZktecoPullWorker.exe  -->  MelodyPrésence  -->  SQLite
+Pointeuse ZKTeco  --TCP/IP:4370-->  ZktecoPullWorker.exe  -->  LT Services Présence  -->  SQLite
 ```
 
 Paramètres : menu **Paramètres** (IP, port, n° machine, mot de passe communication PC).
@@ -66,7 +66,7 @@ Base SQLite :
 
 ```text
 MelodyPresence/
-  MelodyPresence/          # App WPF .NET 8
+  MelodyPresence/          # App WPF .NET 8 (namespace technique)
   ZktecoPullWorker/        # Lecteur terminal (.NET Framework)
   MelodyPresence.Tests/
   MelodyPresence.sln
@@ -74,4 +74,10 @@ MelodyPresence/
 
 ## Licence / éditeur
 
-Impact Entreprises — Melody Présence 1.0.0
+LT Services — LT Services Présence 1.0.0
+
+## Mise à jour
+
+Dans **Paramètres**, bouton **Vérifier les mises à jour**.
+Manifeste : `installer/updates/version.json` (GitHub `Mavuisra/MelodyPresence`).
+
