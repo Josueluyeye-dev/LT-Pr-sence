@@ -1,8 +1,8 @@
-﻿{
-  "version": "1.0.5",
+{
   "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.5/LT_Presence_Setup_1.0.5.exe",
+  "version": "1.0.5",
   "fileName": "LT_Presence_Setup_1.0.5.exe",
-  "sha256": "",
-  "releaseNotes": "Gestion des retenues (transport, pointage horaire, avance quinzaine, prets, CNSS, IPR, autres) avec export PDF et integration au net des bulletins.",
-  "publishedAt": "2026-10-07"
+  "releaseNotes": "Release v1.0.5",
+  "publishedAt": "2026-10-07",
+  "sha256": "15F53ED02E795334A96ADCAB113B8B02CC9CE9EA0DCF110B505E4206CABD20DA"
 }
