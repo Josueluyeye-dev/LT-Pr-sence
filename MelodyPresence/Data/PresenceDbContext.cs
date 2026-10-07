@@ -10,6 +10,7 @@ public class PresenceDbContext : DbContext
     public DbSet<Pointage> Pointages => Set<Pointage>();
     public DbSet<ParametresApplication> Parametres => Set<ParametresApplication>();
     public DbSet<BulletinPaie> Bulletins => Set<BulletinPaie>();
+    public DbSet<RetenuePaie> Retenues => Set<RetenuePaie>();
     public DbSet<Utilisateur> Utilisateurs => Set<Utilisateur>();
 
     public static string CheminBaseDeDonnees
@@ -59,6 +60,8 @@ public class PresenceDbContext : DbContext
         });
 
         modelBuilder.Ignore<LigneBulletinAPayer>();
+        modelBuilder.Ignore<LigneBulletinRetenue>();
+        modelBuilder.Ignore<TypeRetenueItem>();
 
         modelBuilder.Entity<BulletinPaie>(e =>
         {
@@ -67,11 +70,27 @@ public class PresenceDbContext : DbContext
             e.Property(x => x.SalaireMensuel).HasPrecision(18, 2);
             e.Property(x => x.SalaireJournalier).HasPrecision(18, 2);
             e.Property(x => x.RetenueRetards).HasPrecision(18, 2);
+            e.Property(x => x.TotalRetenues).HasPrecision(18, 2);
             e.Property(x => x.TotalAPayer).HasPrecision(18, 2);
             e.Property(x => x.NetAPayer).HasPrecision(18, 2);
             e.Property(x => x.DetailAPayerJson).HasMaxLength(8000);
+            e.Property(x => x.DetailRetenuesJson).HasMaxLength(8000);
             e.Ignore(x => x.LignesAPayer);
+            e.Ignore(x => x.LignesRetenues);
+            e.Ignore(x => x.TotalRetenuesAvecRetards);
             e.Ignore(x => x.PeriodeLibelle);
+            e.HasOne(x => x.Employe).WithMany().HasForeignKey(x => x.EmployeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RetenuePaie>(e =>
+        {
+            e.HasIndex(x => new { x.EmployeId, x.Annee, x.Mois });
+            e.Property(x => x.Type).HasMaxLength(40).IsRequired();
+            e.Property(x => x.LibelleLibre).HasMaxLength(160);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.Property(x => x.Montant).HasPrecision(18, 2);
+            e.Ignore(x => x.TypeLibelle);
+            e.Ignore(x => x.EmployeLibelle);
             e.HasOne(x => x.Employe).WithMany().HasForeignKey(x => x.EmployeId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -135,7 +154,32 @@ public class PresenceDbContext : DbContext
             );
             """);
         AjouterColonneSiAbsente(db, "Bulletins", "TotalAPayer", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Bulletins", "TotalRetenues", "REAL NOT NULL DEFAULT 0");
         AjouterColonneSiAbsente(db, "Bulletins", "DetailAPayerJson", "TEXT NOT NULL DEFAULT '[]'");
+        AjouterColonneSiAbsente(db, "Bulletins", "DetailRetenuesJson", "TEXT NOT NULL DEFAULT '[]'");
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS Retenues (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                EmployeId INTEGER NOT NULL,
+                Annee INTEGER NOT NULL,
+                Mois INTEGER NOT NULL,
+                Type TEXT NOT NULL,
+                LibelleLibre TEXT NULL,
+                Montant REAL NOT NULL DEFAULT 0,
+                Notes TEXT NULL,
+                DateSaisie TEXT NOT NULL,
+                FOREIGN KEY (EmployeId) REFERENCES Employes(Id) ON DELETE CASCADE
+            );
+            """);
+        try
+        {
+            db.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Retenues_EmployeId_Annee_Mois ON Retenues(EmployeId, Annee, Mois);");
+        }
+        catch
+        {
+            // index déjà présent
+        }
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS Utilisateurs (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -17,7 +17,8 @@ public static class CalculBulletinService
         int absences,
         int nbRetards,
         bool periodeClose = false,
-        int joursOuvresEcoules = 0)
+        int joursOuvresEcoules = 0,
+        IReadOnlyList<LigneBulletinRetenue>? retenuesSaisies = null)
     {
         RubriquesAPayerLt.CompleterTauxSiBesoin(employe);
         var lignes = RubriquesAPayerLt.Construire(employe, joursPresents, periodeClose, joursOuvresEcoules);
@@ -34,8 +35,14 @@ public static class CalculBulletinService
 
         var jour = RetardSanctionService.SalaireJournalier(basePourSanction);
         var sanctionnes = RetardSanctionService.NbRetardsSanctionnes(nbRetards);
-        var retenue = RetardSanctionService.CalculerRetenue(basePourSanction, nbRetards);
-        var net = decimal.Round(Math.Max(0m, totalAPayer - retenue), 2, MidpointRounding.AwayFromZero);
+        var retenueRetards = RetardSanctionService.CalculerRetenue(basePourSanction, nbRetards);
+
+        var lignesRet = (retenuesSaisies ?? []).Where(r => r.Montant > 0).ToList();
+        var totalRetenues = decimal.Round(lignesRet.Sum(r => r.Montant), 2, MidpointRounding.AwayFromZero);
+        var net = decimal.Round(
+            Math.Max(0m, totalAPayer - retenueRetards - totalRetenues),
+            2,
+            MidpointRounding.AwayFromZero);
 
         return new BulletinPaie
         {
@@ -51,10 +58,12 @@ public static class CalculBulletinService
             Absences = absences,
             NbRetards = nbRetards,
             NbRetardsSanctionnes = sanctionnes,
-            RetenueRetards = retenue,
+            RetenueRetards = retenueRetards,
+            TotalRetenues = totalRetenues,
             TotalAPayer = totalAPayer,
             NetAPayer = net,
-            DetailAPayerJson = JsonSerializer.Serialize(lignes, JsonOpts)
+            DetailAPayerJson = JsonSerializer.Serialize(lignes, JsonOpts),
+            DetailRetenuesJson = JsonSerializer.Serialize(lignesRet, JsonOpts)
         };
     }
 
@@ -84,10 +93,28 @@ public static class CalculBulletinService
         var resume = PresenceCalculService.ResumeMensuel(employes, pts, annee, mois, hDebut, hLimite, jourRef);
         var parId = resume.ToDictionary(r => r.Employe.Id);
 
+        var retenues = db.Retenues.AsNoTracking()
+            .Where(r => r.Annee == annee && r.Mois == mois && r.Montant > 0)
+            .ToList()
+            .GroupBy(r => r.EmployeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(r => new LigneBulletinRetenue
+                {
+                    Type = r.Type,
+                    Libelle = string.IsNullOrWhiteSpace(r.LibelleLibre)
+                        ? TypesRetenue.Libelle(r.Type)
+                        : r.LibelleLibre!,
+                    Montant = r.Montant
+                }).ToList());
+
         foreach (var emp in employes)
         {
             parId.TryGetValue(emp.Id, out var r);
-            var bulletin = Calculer(emp, annee, mois, r.JoursPresents, r.Absences, r.Retards, periodeClose, joursOuvres);
+            retenues.TryGetValue(emp.Id, out var retEmp);
+            var bulletin = Calculer(
+                emp, annee, mois, r.JoursPresents, r.Absences, r.Retards,
+                periodeClose, joursOuvres, retEmp);
             bulletin.Employe = null;
 
             var existant = db.Bulletins.FirstOrDefault(b =>
@@ -103,9 +130,11 @@ public static class CalculBulletinService
                 existant.NbRetards = bulletin.NbRetards;
                 existant.NbRetardsSanctionnes = bulletin.NbRetardsSanctionnes;
                 existant.RetenueRetards = bulletin.RetenueRetards;
+                existant.TotalRetenues = bulletin.TotalRetenues;
                 existant.TotalAPayer = bulletin.TotalAPayer;
                 existant.NetAPayer = bulletin.NetAPayer;
                 existant.DetailAPayerJson = bulletin.DetailAPayerJson;
+                existant.DetailRetenuesJson = bulletin.DetailRetenuesJson;
             }
             else
             {

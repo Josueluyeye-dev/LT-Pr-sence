@@ -2432,7 +2432,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource PageTitle}" Text="Paie &amp; bulletins"/>
                                 <TextBlock Style="{StaticResource PageSubtitle}" Margin="0,4,0,0"
-                                           Text="Bulletins réels (période 24→24) : sync pointeuse puis calcul jusqu’à aujourd’hui. Retenue : retards (3 tolérés)."/>
+                                           Text="Période 24→24 · retenues (transport, prêts, CNSS, IPR…) · bulletins PDF."/>
                             </StackPanel>
                         </DockPanel>
 
@@ -2476,6 +2476,97 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Retenues -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                            <DockPanel>
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                        <Button Content="Nouvelle" Style="{StaticResource GhostButton}"
+                                                Command="{Binding NouvelleRetenueCommand}"/>
+                                        <Button Content="Enregistrer" Style="{StaticResource GhostButton}"
+                                                Command="{Binding SauverRetenueCommand}"/>
+                                        <Button Content="Supprimer" Style="{StaticResource GhostButton}"
+                                                Command="{Binding SupprimerRetenueCommand}"/>
+                                        <Button Content="PDF retenues" Command="{Binding ExporterRetenuesPdfCommand}" Margin="0"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="RETENUES DU MOIS" Margin="0"/>
+                                        <TextBlock Text="{Binding RetenuesResumeLibelle}" FontWeight="Bold" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Border DockPanel.Dock="Top" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                        BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12"
+                                        Visibility="{Binding RetenueEdition, Converter={StaticResource NullToVis}}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="140"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0" Grid.Column="0">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Employé"/>
+                                            <ComboBox ItemsSource="{Binding EmployesPaie}"
+                                                      SelectedItem="{Binding RetenueEmployeSelectionne}"
+                                                      DisplayMemberPath="NomComplet" Margin="0,0,0,8"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="2">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Type de retenue"/>
+                                            <ComboBox ItemsSource="{Binding TypesRetenueListe}"
+                                                      SelectedItem="{Binding RetenueTypeSelectionne}"
+                                                      DisplayMemberPath="Libelle" Margin="0,0,0,8"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="4">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Montant"/>
+                                            <TextBox Text="{Binding RetenueEdition.Montant, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,8"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Libellé libre (optionnel)"/>
+                                            <TextBox Text="{Binding RetenueEdition.LibelleLibre, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,8"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="4">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text=" "/>
+                                            <TextBlock Text="Transport · Pointage · Avance · Prêts · CNSS · IPR"
+                                                       FontSize="10" Opacity="0.65" TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Notes"/>
+                                            <TextBox Text="{Binding RetenueEdition.Notes, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <DataGrid ItemsSource="{Binding RetenuesMois}"
+                                          SelectedItem="{Binding RetenueSelectionnee}"
+                                          MaxHeight="220">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Matricule" Binding="{Binding Employe.Matricule}" Width="90"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Employé" Binding="{Binding Employe.NomComplet}" Width="*"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Type" Binding="{Binding TypeLibelle}" Width="140"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Montant" Binding="{Binding Montant, StringFormat=N2}" Width="100"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="160"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+
                         <Border Style="{StaticResource Card}" Padding="16">
                             <DockPanel>
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
@@ -2497,9 +2588,11 @@
                                                             ElementStyle="{StaticResource DataGridCellText}"/>
                                         <DataGridTextColumn Header="Employé" Binding="{Binding Employe.NomComplet}" Width="*"
                                                             ElementStyle="{StaticResource DataGridCellText}"/>
-                                        <DataGridTextColumn Header="Total A PAYER" Binding="{Binding TotalAPayer, StringFormat=N2}" Width="110"
+                                        <DataGridTextColumn Header="Total A PAYER" Binding="{Binding TotalAPayer, StringFormat=N2}" Width="100"
                                                             ElementStyle="{StaticResource DataGridCellText}"/>
-                                        <DataGridTextColumn Header="Retenue retards" Binding="{Binding RetenueRetards, StringFormat=N2}" Width="110"
+                                        <DataGridTextColumn Header="Retards" Binding="{Binding RetenueRetards, StringFormat=N2}" Width="80"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Retenues" Binding="{Binding TotalRetenues, StringFormat=N2}" Width="90"
                                                             ElementStyle="{StaticResource DataGridCellText}"/>
                                         <DataGridTextColumn Header="Net à payer" Binding="{Binding NetAPayer, StringFormat=N2}" Width="100"
                                                             ElementStyle="{StaticResource DataGridCellText}"/>

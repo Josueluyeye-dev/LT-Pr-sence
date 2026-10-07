@@ -21,12 +21,18 @@ public class BulletinPaie
     public int NbRetardsSanctionnes { get; set; }
     public decimal RetenueRetards { get; set; }
 
-    /// <summary>Somme des rubriques « A PAYER » (avant retenue retards).</summary>
+    /// <summary>Somme des retenues saisies (transport, prêts, CNSS, IPR…).</summary>
+    public decimal TotalRetenues { get; set; }
+
+    /// <summary>Somme des rubriques « A PAYER » (avant retenues).</summary>
     public decimal TotalAPayer { get; set; }
     public decimal NetAPayer { get; set; }
 
     /// <summary>JSON des lignes A PAYER (libelle, temps, taux, montant).</summary>
     public string DetailAPayerJson { get; set; } = "[]";
+
+    /// <summary>JSON des retenues figées au moment de la génération.</summary>
+    public string DetailRetenuesJson { get; set; } = "[]";
 
     [NotMapped]
     public IReadOnlyList<LigneBulletinAPayer> LignesAPayer
@@ -44,6 +50,26 @@ public class BulletinPaie
             }
         }
     }
+
+    [NotMapped]
+    public IReadOnlyList<LigneBulletinRetenue> LignesRetenues
+    {
+        get
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<List<LigneBulletinRetenue>>(DetailRetenuesJson)
+                       ?? [];
+            }
+            catch
+            {
+                return [];
+            }
+        }
+    }
+
+    [NotMapped]
+    public decimal TotalRetenuesAvecRetards => TotalRetenues + RetenueRetards;
 
     /// <summary>Période LT : 24→24 ; si ouverte, affiche jusqu’à aujourd’hui.</summary>
     [NotMapped]

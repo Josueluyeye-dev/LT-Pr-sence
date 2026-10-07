@@ -129,6 +129,10 @@ public class MainViewModel : ObservableObject
         GenererBulletinsCommand = new RelayCommand(async _ => await GenererBulletinsMoisAsync());
         ExporterBulletinPdfCommand = new RelayCommand(_ => ExporterBulletinSelectionPdf(), _ => BulletinSelectionne != null);
         ExporterTousBulletinsPdfCommand = new RelayCommand(_ => ExporterTousBulletinsPdf(), _ => BulletinsMois.Count > 0);
+        NouvelleRetenueCommand = new RelayCommand(_ => NouvelleRetenue());
+        SauverRetenueCommand = new RelayCommand(_ => SauverRetenue(), _ => RetenueEdition != null && RetenueEmployeSelectionne != null);
+        SupprimerRetenueCommand = new RelayCommand(_ => SupprimerRetenue(), _ => RetenueSelectionnee != null);
+        ExporterRetenuesPdfCommand = new RelayCommand(_ => ExporterRetenuesPdf(), _ => RetenuesMois.Count > 0);
         ImporterFicheSalaireCommand = new RelayCommand(_ => ImporterFicheSalaire());
         ImporterEmployesCsvCommand = new RelayCommand(_ => ImporterEmployesCsv());
         RechargerEmployesSeedCommand = new RelayCommand(_ => RechargerEmployesSeed());
@@ -788,6 +792,10 @@ public class MainViewModel : ObservableObject
     public ICommand GenererBulletinsCommand { get; }
     public ICommand ExporterBulletinPdfCommand { get; }
     public ICommand ExporterTousBulletinsPdfCommand { get; }
+    public ICommand NouvelleRetenueCommand { get; }
+    public ICommand SauverRetenueCommand { get; }
+    public ICommand SupprimerRetenueCommand { get; }
+    public ICommand ExporterRetenuesPdfCommand { get; }
     public ICommand ImporterFicheSalaireCommand { get; }
     public ICommand ImporterEmployesCsvCommand { get; }
     public ICommand RechargerEmployesSeedCommand { get; }
@@ -810,13 +818,86 @@ public class MainViewModel : ObservableObject
     }
 
     public ObservableCollection<BulletinPaie> BulletinsMois { get; } = new();
+    public ObservableCollection<RetenuePaie> RetenuesMois { get; } = new();
+    public ObservableCollection<Employe> EmployesPaie { get; } = new();
+
+    public IReadOnlyList<TypeRetenueItem> TypesRetenueListe { get; } = TypesRetenue.Tous;
 
     private BulletinPaie? _bulletinSelectionne;
     public BulletinPaie? BulletinSelectionne
     {
         get => _bulletinSelectionne;
-        set => SetProperty(ref _bulletinSelectionne, value);
+        set
+        {
+            if (SetProperty(ref _bulletinSelectionne, value))
+                (ExporterBulletinPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
     }
+
+    private RetenuePaie? _retenueSelectionnee;
+    public RetenuePaie? RetenueSelectionnee
+    {
+        get => _retenueSelectionnee;
+        set
+        {
+            if (!SetProperty(ref _retenueSelectionnee, value)) return;
+            (SupprimerRetenueCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            if (value != null)
+            {
+                RetenueEdition = new RetenuePaie
+                {
+                    Id = value.Id,
+                    EmployeId = value.EmployeId,
+                    Annee = value.Annee,
+                    Mois = value.Mois,
+                    Type = value.Type,
+                    LibelleLibre = value.LibelleLibre,
+                    Montant = value.Montant,
+                    Notes = value.Notes
+                };
+                RetenueEmployeSelectionne = EmployesPaie.FirstOrDefault(e => e.Id == value.EmployeId);
+                RetenueTypeSelectionne = TypesRetenueListe.FirstOrDefault(t => t.Code == value.Type)
+                                         ?? TypesRetenueListe[0];
+            }
+        }
+    }
+
+    private RetenuePaie? _retenueEdition;
+    public RetenuePaie? RetenueEdition
+    {
+        get => _retenueEdition;
+        set
+        {
+            if (SetProperty(ref _retenueEdition, value))
+                (SauverRetenueCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+    }
+
+    private Employe? _retenueEmployeSelectionne;
+    public Employe? RetenueEmployeSelectionne
+    {
+        get => _retenueEmployeSelectionne;
+        set
+        {
+            if (SetProperty(ref _retenueEmployeSelectionne, value))
+                (SauverRetenueCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+    }
+
+    private TypeRetenueItem _retenueTypeSelectionne = TypesRetenue.Tous[0];
+    public TypeRetenueItem RetenueTypeSelectionne
+    {
+        get => _retenueTypeSelectionne;
+        set
+        {
+            if (value == null) return;
+            if (SetProperty(ref _retenueTypeSelectionne, value) && RetenueEdition != null)
+                RetenueEdition.Type = value.Code;
+        }
+    }
+
+    public string RetenuesResumeLibelle =>
+        $"{RetenuesMois.Count} retenue(s) · Total {RetenuesMois.Sum(r => r.Montant):N2}";
 
     public string PaieRegleRetards => RetardSanctionService.LibelleRegle;
 
@@ -833,7 +914,7 @@ public class MainViewModel : ObservableObject
         PeriodePaieLtService.LibelleSituation(PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport));
 
     public string BulletinsResumeLibelle =>
-        $"{BulletinsMois.Count} bulletin(s) · Net total {BulletinsMois.Sum(b => b.NetAPayer):N2}";
+        $"{BulletinsMois.Count} bulletin(s) · Retenues {BulletinsMois.Sum(b => b.TotalRetenuesAvecRetards):N2} · Net {BulletinsMois.Sum(b => b.NetAPayer):N2}";
 
     public string VersionApplication =>
         ApplicationUpdateService.FormaterVersion(ApplicationUpdateService.ObtenirVersionInstallee());
@@ -1199,7 +1280,100 @@ public class MainViewModel : ObservableObject
         foreach (var b in CalculBulletinService.ListerMois(AnneeRapport, MoisRapport))
             BulletinsMois.Add(b);
         OnPropertyChanged(nameof(BulletinsResumeLibelle));
-        StatutBarre = "Paie — heures et bulletins du mois";
+
+        EmployesPaie.Clear();
+        using (var db = new PresenceDbContext())
+        {
+            foreach (var e in db.Employes.AsNoTracking().Where(x => x.Actif).OrderBy(x => x.Nom).ThenBy(x => x.Prenom))
+                EmployesPaie.Add(e);
+        }
+
+        ChargerRetenuesMois();
+        if (RetenueEdition == null)
+            NouvelleRetenue();
+        StatutBarre = "Paie — heures, retenues et bulletins du mois";
+    }
+
+    private void ChargerRetenuesMois()
+    {
+        RetenuesMois.Clear();
+        foreach (var r in RetenuePaieService.ListerMois(AnneeRapport, MoisRapport))
+            RetenuesMois.Add(r);
+        OnPropertyChanged(nameof(RetenuesResumeLibelle));
+        (ExporterRetenuesPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private void NouvelleRetenue()
+    {
+        RetenueSelectionnee = null;
+        RetenueTypeSelectionne = TypesRetenueListe[0];
+        RetenueEdition = new RetenuePaie
+        {
+            Annee = AnneeRapport,
+            Mois = MoisRapport,
+            Type = RetenueTypeSelectionne.Code,
+            Montant = 0
+        };
+        if (RetenueEmployeSelectionne == null)
+            RetenueEmployeSelectionne = EmployesPaie.FirstOrDefault();
+        Onglet = "Paie";
+    }
+
+    private void SauverRetenue()
+    {
+        if (RetenueEdition == null || RetenueEmployeSelectionne == null)
+            return;
+        try
+        {
+            RetenueEdition.EmployeId = RetenueEmployeSelectionne.Id;
+            RetenueEdition.Annee = AnneeRapport;
+            RetenueEdition.Mois = MoisRapport;
+            RetenueEdition.Type = RetenueTypeSelectionne.Code;
+
+            RetenuePaieService.Enregistrer(RetenueEdition);
+            ChargerRetenuesMois();
+            NouvelleRetenue();
+            StatutBarre = "✓ Retenue enregistrée — régénérez les bulletins pour l’appliquer au net";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Retenue", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void SupprimerRetenue()
+    {
+        if (RetenueSelectionnee == null) return;
+        var ok = MessageBox.Show(
+            $"Supprimer la retenue « {RetenueSelectionnee.TypeLibelle} » ({RetenueSelectionnee.Montant:N2}) ?",
+            "Retenues", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (ok != MessageBoxResult.Yes) return;
+        RetenuePaieService.Supprimer(RetenueSelectionnee.Id);
+        RetenueSelectionnee = null;
+        RetenueEdition = null;
+        ChargerRetenuesMois();
+        StatutBarre = "Retenue supprimée";
+    }
+
+    private void ExporterRetenuesPdf()
+    {
+        if (RetenuesMois.Count == 0)
+        {
+            MessageBox.Show("Aucune retenue pour cette période.", "Retenues");
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Filter = "PDF (*.pdf)|*.pdf",
+            FileName = $"Retenues_{AnneeRapport}{MoisRapport:D2}.pdf"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        RetenuePdfService.ExporterPeriode(
+            AnneeRapport, MoisRapport, NomEntrepriseCourant(), dlg.FileName, RetenuesMois.ToList());
+        StatutBarre = "✓ État des retenues PDF exporté";
+        MessageBox.Show($"PDF enregistré :\n{dlg.FileName}", "Retenues");
     }
 
     private void Deconnecter()

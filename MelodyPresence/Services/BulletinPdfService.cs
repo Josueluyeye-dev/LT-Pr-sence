@@ -146,12 +146,46 @@ public static class BulletinPdfService
                     .Text(b.TotalAPayer.ToString("N2", cult)).FontColor(Colors.White).Bold().FontSize(11);
             });
 
-            if (b.RetenueRetards > 0)
+            var lignesRet = b.LignesRetenues.ToList();
+            if (b.RetenueRetards > 0 || lignesRet.Count > 0)
             {
-                col.Item().PaddingTop(5).Background("#FEF2F2").Border(1).BorderColor("#FECACA")
-                    .PaddingVertical(5).PaddingHorizontal(8)
-                    .Text($"Retenue retards : {b.NbRetards} retard(s) · {b.NbRetardsSanctionnes} sanctionné(s)  →  − {b.RetenueRetards.ToString("N2", cult)}")
-                    .FontSize(8.5f).FontColor(Red).Bold();
+                col.Item().PaddingTop(10).Text("RETENUES").Bold().FontSize(11).FontColor(Dark);
+                col.Item().PaddingTop(4).Border(1).BorderColor(Border).Table(table =>
+                {
+                    table.ColumnsDefinition(c =>
+                    {
+                        c.RelativeColumn();
+                        c.ConstantColumn(90);
+                    });
+                    table.Header(h =>
+                    {
+                        HCell(h.Cell(), "Nature", false);
+                        HCell(h.Cell(), "Montant", true);
+                    });
+                    var i = 0;
+                    if (b.RetenueRetards > 0)
+                    {
+                        var bg = "#FFFFFF";
+                        BCell(table.Cell(),
+                            $"Retenue retards ({b.NbRetards} retard(s), {b.NbRetardsSanctionnes} sanctionné(s))",
+                            bg, false);
+                        BCell(table.Cell(), b.RetenueRetards.ToString("N2", cult), bg, true);
+                        i++;
+                    }
+
+                    foreach (var l in lignesRet)
+                    {
+                        var bg = i++ % 2 == 0 ? "#FFFFFF" : RowAlt;
+                        BCell(table.Cell(), l.Libelle, bg, false);
+                        BCell(table.Cell(), l.Montant.ToString("N2", cult), bg, true);
+                    }
+
+                    var totalRet = b.TotalRetenuesAvecRetards;
+                    table.Cell().Background("#FEF2F2").PaddingVertical(5).PaddingHorizontal(8)
+                        .Text("TOTAL RETENUES").FontColor(Red).Bold().FontSize(9);
+                    table.Cell().Background("#FEF2F2").PaddingVertical(5).PaddingHorizontal(8).AlignRight()
+                        .Text(totalRet.ToString("N2", cult)).FontColor(Red).Bold().FontSize(10);
+                });
             }
 
             col.Item().PaddingTop(8).Background(Dark).PaddingVertical(9).PaddingHorizontal(12).Row(row =>
