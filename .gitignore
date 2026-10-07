@@ -12,6 +12,7 @@ lt_services_salaires.csv
 *.log
 _tmp_export/
 _fix_*.py
-lt_services_employes.csv
+/lt_services_employes.csv
+!MelodyPresence/Assets/Seed/lt_services_employes.csv
 *.bak*
 MelodyPresence/Assets/_gen_*.py
