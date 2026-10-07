@@ -5,8 +5,8 @@
 ; =============================================================================
 
 #define MyAppName "LT Services Presence"
-#define MyAppVersion "1.0.0"
-#define MyAppVersionShort "1.0.0"
+#define MyAppVersion "1.0.1"
+#define MyAppVersionShort "1.0.1"
 #define MyAppPublisher "IMPACT Entreprises"
 #define MyAppClient "LT Services"
 #define MyAppExeName "MelodyPresence.exe"
@@ -170,4 +170,5 @@ begin
 
   Result := True;
 end;
+
 
