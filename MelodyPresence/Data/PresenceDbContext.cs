@@ -168,10 +168,21 @@ public class PresenceDbContext : DbContext
             // index déjà présent
         }
 
+        // Première installation : précharger la liste employés LT (+ salaires si fichier seed présent)
+        try
+        {
+            SeedEmployesLtSiBaseVide();
+        }
+        catch
+        {
+            // non bloquant
+        }
+
         // Taux A PAYER absents après import salaire seul → dériver ÷ 26
         try
         {
-            Services.CalculBulletinService.CompleterTauxManquants(db);
+            using var dbTaux = new PresenceDbContext();
+            Services.CalculBulletinService.CompleterTauxManquants(dbTaux);
         }
         catch
         {
@@ -180,7 +191,7 @@ public class PresenceDbContext : DbContext
 
         if (!db.Parametres.Any(x => x.Id == ParametresApplication.SingletonId))
         {
-            db.Parametres.Add(new ParametresApplication());
+            db.Parametres.Add(new ParametresApplication { NomEntreprise = "LT Services" });
             db.SaveChanges();
             return;
         }
@@ -215,6 +226,28 @@ public class PresenceDbContext : DbContext
 
         if (changed)
             db.SaveChanges();
+    }
+
+    /// <summary>
+    /// Sur machine neuve (0 employé), charge le CSV LT livré avec l'installateur.
+    /// </summary>
+    public static void SeedEmployesLtSiBaseVide()
+    {
+        using var db = new PresenceDbContext();
+        if (db.Employes.Any())
+            return;
+
+        var csv = Services.EmployeCsvImportService.CheminSeedParDefaut();
+        if (csv != null)
+            Services.EmployeCsvImportService.Importer(csv, creerSeulementSiAbsent: true);
+
+        // Salaires / taux depuis la fiche Excel seed (crée aussi les manquants)
+        if (!db.Employes.Any() || db.Employes.All(e => e.SalaireMensuel <= 0))
+        {
+            var xlsx = Services.FicheSalaireImportService.CheminSeedSalaireParDefaut();
+            if (xlsx != null)
+                Services.FicheSalaireImportService.Importer(xlsx);
+        }
     }
 
     private static void AjouterColonneSiAbsente(PresenceDbContext db, string table, string colonne, string definition)

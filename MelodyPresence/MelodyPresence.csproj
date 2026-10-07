@@ -32,6 +32,12 @@
     <Content Include="Assets\toast_logo_circle.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Liste employés LT + fiche salaire : préchargés à la 1re installation -->
+  <ItemGroup>
+    <Content Include="Assets\Seed\lt_services_employes.csv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Seed\FICHER_DE_SALAIRE_LT.xlsx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Ã‰vite les collisions WPF / WinForms (NotifyIcon seulement). -->
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />

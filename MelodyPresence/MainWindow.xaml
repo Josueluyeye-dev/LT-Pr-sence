@@ -1261,10 +1261,18 @@
                             </Grid>
 
                             <WrapPanel Orientation="Horizontal">
+                                <Button Content="Charger liste LT" Style="{StaticResource GhostButton}"
+                                        Command="{Binding RechargerEmployesSeedCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,8,8"
+                                        ToolTip="Précharger les employés LT livrés avec l'application"/>
+                                <Button Content="Importer CSV" Style="{StaticResource GhostButton}"
+                                        Command="{Binding ImporterEmployesCsvCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,8,8"
+                                        ToolTip="Importer un fichier CSV employés (Matricule;Nom;Postnom;Prenom;PIN)"/>
                                 <Button Content="Importer salaires" Style="{StaticResource GhostButton}"
                                         Command="{Binding ImporterFicheSalaireCommand}"
                                         Padding="12,8" MinHeight="36" Margin="0,0,8,8"
-                                        ToolTip="Fichier Excel « FICHER DE SALAIRE » (feuille SALAIRE ET TAXE)"/>
+                                        ToolTip="Fichier Excel « FICHER DE SALAIRE » — crée aussi les employés manquants"/>
                                 <Button Content="Nouveau" Command="{Binding NouvelEmployeCommand}"
                                         Padding="12,8" MinHeight="36" Margin="0,0,8,8"/>
                                 <Button Content="Modifier" Style="{StaticResource GhostButton}"
@@ -2388,6 +2396,8 @@
                     <StackPanel>
                         <DockPanel Margin="0,0,0,12">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Top">
+                                <Button Content="Charger liste LT" Style="{StaticResource GhostButton}"
+                                        Command="{Binding RechargerEmployesSeedCommand}"/>
                                 <Button Content="Importer salaires" Style="{StaticResource GhostButton}"
                                         Command="{Binding ImporterFicheSalaireCommand}"/>
                                 <Button Content="Actualiser" Style="{StaticResource GhostButton}"

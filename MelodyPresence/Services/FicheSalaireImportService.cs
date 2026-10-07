@@ -12,6 +12,7 @@ namespace MelodyPresence.Services;
 public sealed class FicheSalaireImportResult
 {
     public int MisAJour { get; set; }
+    public int Crees { get; set; }
     public int NonMatchés { get; set; }
     public int LignesLues { get; set; }
     public List<string> Details { get; } = new();
@@ -76,11 +77,24 @@ public static class FicheSalaireImportService
         foreach (var (nomExcel, salaire, baseJr, annuite, transport, logement, alfa) in lignes)
         {
             var match = MeilleurMatch(nomExcel, employes.Where(e => !used.Contains(e.Id)));
+            var cree = false;
             if (match == null)
             {
-                result.NonMatchés++;
-                result.Details.Add($"Non trouvé : {nomExcel} ({salaire:N2})");
-                continue;
+                // Installation neuve / liste vide : créer l'employé depuis la fiche salaire
+                var (nom, prenom) = DecouperNomExcel(nomExcel);
+                var matricule = GenererMatriculeTemporaire(nom, prenom, employes);
+                match = new Employe
+                {
+                    Matricule = matricule,
+                    Nom = nom,
+                    Prenom = prenom,
+                    CodePinZk = matricule,
+                    Actif = true
+                };
+                db.Employes.Add(match);
+                employes.Add(match);
+                cree = true;
+                result.Crees++;
             }
 
             used.Add(match.Id);
@@ -93,11 +107,59 @@ public static class FicheSalaireImportService
             if (logement > 0) match.TauxLogement = logement;
             if (alfa > 0) match.TauxAllocFamiliales = alfa;
             result.MisAJour++;
-            result.Details.Add($"{match.Matricule} ← {nomExcel} = {salaire:N2}");
+            result.Details.Add(cree
+                ? $"+ {match.Matricule} créé ← {nomExcel} = {salaire:N2}"
+                : $"{match.Matricule} ← {nomExcel} = {salaire:N2}");
         }
 
         db.SaveChanges();
         return result;
+    }
+
+    private static (string Nom, string Prenom) DecouperNomExcel(string nomExcel)
+    {
+        var parts = nomExcel.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return ("Inconnu", "");
+        if (parts.Length == 1)
+            return (parts[0], "");
+        if (parts.Length == 2)
+            return (parts[0], parts[1]);
+        // NOM POSTNOM PRENOM… → Nom = 2 premiers, Prenom = reste
+        return (string.Join(' ', parts.Take(2)), string.Join(' ', parts.Skip(2)));
+    }
+
+    private static string GenererMatriculeTemporaire(string nom, string prenom, List<Employe> existants)
+    {
+        var baseMat = "TMP-" + new string((nom + prenom)
+            .Where(char.IsLetterOrDigit)
+            .Take(8)
+            .Select(char.ToUpperInvariant)
+            .ToArray());
+        if (string.IsNullOrWhiteSpace(baseMat) || baseMat == "TMP-")
+            baseMat = "TMP-EMP";
+        var candidat = baseMat;
+        var n = 1;
+        var connus = new HashSet<string>(existants.Select(e => e.Matricule), StringComparer.OrdinalIgnoreCase);
+        while (connus.Contains(candidat))
+        {
+            candidat = $"{baseMat}-{n}";
+            n++;
+        }
+
+        return candidat;
+    }
+
+    public static string? CheminSeedSalaireParDefaut()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var candidats = new[]
+        {
+            Path.Combine(baseDir, "Assets", "Seed", "FICHER_DE_SALAIRE_LT.xlsx"),
+            Path.Combine(baseDir, "Seed", "FICHER_DE_SALAIRE_LT.xlsx"),
+            Path.Combine(baseDir, "FICHER_DE_SALAIRE_LT.xlsx")
+        };
+        return candidats.FirstOrDefault(File.Exists);
     }
 
     private static Employe? MeilleurMatch(string nomExcel, IEnumerable<Employe> candidats)

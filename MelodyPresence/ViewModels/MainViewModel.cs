@@ -129,6 +129,8 @@ public class MainViewModel : ObservableObject
         ExporterBulletinPdfCommand = new RelayCommand(_ => ExporterBulletinSelectionPdf(), _ => BulletinSelectionne != null);
         ExporterTousBulletinsPdfCommand = new RelayCommand(_ => ExporterTousBulletinsPdf(), _ => BulletinsMois.Count > 0);
         ImporterFicheSalaireCommand = new RelayCommand(_ => ImporterFicheSalaire());
+        ImporterEmployesCsvCommand = new RelayCommand(_ => ImporterEmployesCsv());
+        RechargerEmployesSeedCommand = new RelayCommand(_ => RechargerEmployesSeed());
         DeconnecterCommand = new RelayCommand(_ => Deconnecter());
         RecalculerTauxBaseCommand = new RelayCommand(_ => RecalculerTauxBaseEmploye(), _ => EmployeEdition != null);
 
@@ -782,6 +784,8 @@ public class MainViewModel : ObservableObject
     public ICommand ExporterBulletinPdfCommand { get; }
     public ICommand ExporterTousBulletinsPdfCommand { get; }
     public ICommand ImporterFicheSalaireCommand { get; }
+    public ICommand ImporterEmployesCsvCommand { get; }
+    public ICommand RechargerEmployesSeedCommand { get; }
     public ICommand DeconnecterCommand { get; }
     public ICommand RecalculerTauxBaseCommand { get; }
 
@@ -1207,9 +1211,9 @@ public class MainViewModel : ObservableObject
             var r = FicheSalaireImportService.Importer(dlg.FileName);
             ChargerEmployes();
             ChargerModulePaie();
-            StatutBarre = $"✓ Salaires importés : {r.MisAJour}/{r.LignesLues} (non matchés : {r.NonMatchés})";
+            StatutBarre = $"✓ Salaires importés : {r.MisAJour}/{r.LignesLues} (créés : {r.Crees})";
             MessageBox.Show(
-                $"Import terminé.\n\nLignes lues : {r.LignesLues}\nSalaires mis à jour : {r.MisAJour}\nNon trouvés : {r.NonMatchés}",
+                $"Import terminé.\n\nLignes lues : {r.LignesLues}\nSalaires mis à jour : {r.MisAJour}\nEmployés créés : {r.Crees}",
                 "Fiche salaire",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1217,6 +1221,88 @@ public class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Import fiche salaire", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ImporterEmployesCsv()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "CSV employés (*.csv)|*.csv",
+            Title = "Importer la liste des employés LT (Matricule;Nom;Postnom;Prenom;CodePinZk)"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var r = EmployeCsvImportService.Importer(dlg.FileName);
+            ChargerEmployes();
+            ChargerPresenceJour();
+            ChargerAccueil();
+            StatutBarre = $"✓ Employés : {r.Crees} créés, {r.MisAJour} mis à jour";
+            MessageBox.Show(
+                $"Import CSV terminé.\n\nLignes : {r.LignesLues}\nCréés : {r.Crees}\nMis à jour : {r.MisAJour}",
+                "Employés",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Import employés", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void RechargerEmployesSeed()
+    {
+        try
+        {
+            using var db = new PresenceDbContext();
+            var nb = db.Employes.Count();
+            if (nb > 0)
+            {
+                var conf = MessageBox.Show(
+                    $"La base contient déjà {nb} employé(s).\n\nAjouter uniquement les matricules manquants depuis le fichier livré avec l'application ?",
+                    "Recharger liste LT",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (conf != MessageBoxResult.Yes)
+                    return;
+            }
+
+            var csv = EmployeCsvImportService.CheminSeedParDefaut();
+            if (csv == null)
+            {
+                MessageBox.Show(
+                    "Fichier seed introuvable (Assets/Seed/lt_services_employes.csv).\nUtilisez « Importer CSV ».",
+                    "Employés",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var r = EmployeCsvImportService.Importer(csv, creerSeulementSiAbsent: nb > 0);
+            var xlsx = FicheSalaireImportService.CheminSeedSalaireParDefaut();
+            FicheSalaireImportResult? sal = null;
+            if (xlsx != null)
+                sal = FicheSalaireImportService.Importer(xlsx);
+
+            ChargerEmployes();
+            ChargerPresenceJour();
+            ChargerAccueil();
+            ChargerModulePaie();
+            StatutBarre = $"✓ Liste LT : +{r.Crees} employé(s)" +
+                          (sal != null ? $", salaires {sal.MisAJour}" : "");
+            MessageBox.Show(
+                $"Liste LT rechargée.\n\nCréés : {r.Crees}\nMis à jour : {r.MisAJour}" +
+                (sal != null ? $"\nSalaires : {sal.MisAJour} (créés fiche : {sal.Crees})" : ""),
+                "Employés LT",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Recharger liste LT", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
