@@ -1,4 +1,4 @@
-﻿<Window x:Class="MelodyPresence.MainWindow"
+<Window x:Class="MelodyPresence.MainWindow"
 
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 
@@ -190,6 +190,24 @@
 
                         <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
 
+                                     IsChecked="{Binding EstPaie, Mode=OneWay}"
+
+                                     Command="{Binding NaviguerCommand}" CommandParameter="Paie">
+
+                            <StackPanel Style="{StaticResource NavRow}">
+
+                                <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE8A1;" Margin="0,0,12,0"
+
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+
+                                <TextBlock Text="Paie" VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav"
+
                                      IsChecked="{Binding EstParametres, Mode=OneWay}"
 
                                      Command="{Binding NaviguerCommand}" CommandParameter="Paramètres">
@@ -258,30 +276,24 @@
 
                         </Border>
 
-                        <StackPanel Orientation="Horizontal" Margin="4,0,0,2">
-
-                            <Border Width="36" Height="36" CornerRadius="18" Background="#22E30613" Margin="0,0,10,0">
-
-                                <TextBlock Text="{Binding InitialesUtilisateur}" FontSize="12" FontWeight="Bold"
-
-                                           Foreground="{StaticResource BrushAccent}"
-
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
-                            </Border>
-
-                            <StackPanel VerticalAlignment="Center">
-
-                                <TextBlock Text="{Binding NomUtilisateurAffiche}" FontSize="12" FontWeight="SemiBold"
-
-                                           Foreground="{StaticResource BrushText}"/>
-
-                                <TextBlock Text="{Binding RoleUtilisateurAffiche}" FontSize="11"
-
-                                           Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
-
+                        <StackPanel Margin="4,0,0,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="36" Height="36" CornerRadius="18" Background="#22E30613" Margin="0,0,10,0">
+                                    <TextBlock Text="{Binding InitialesUtilisateur}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource BrushAccent}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding NomUtilisateurAffiche}" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{StaticResource BrushText}"/>
+                                    <TextBlock Text="{Binding RoleUtilisateurAffiche}" FontSize="11"
+                                               Foreground="{StaticResource BrushText}" FontWeight="Bold"/>
+                                </StackPanel>
                             </StackPanel>
-
+                            <Button Content="Se déconnecter" Style="{StaticResource GhostButton}"
+                                    Command="{Binding DeconnecterCommand}"
+                                    Margin="0,10,0,0" Padding="10,6" MinHeight="32"
+                                    HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
                     </StackPanel>
@@ -296,7 +308,7 @@
 
             <Border Grid.Column="1" Background="#FFB8BEC8" Margin="0">
 
-            <Grid x:Name="ContentHost" Opacity="0" Margin="18,14,18,12" Background="#FFB8BEC8">
+            <Grid x:Name="ContentHost" Opacity="1" Margin="18,14,18,12" Background="#FFB8BEC8">
 
                 <!-- Accueil / Dashboard mockup -->
 
@@ -1219,103 +1231,163 @@
                 <Grid Visibility="{Binding EstEmployes, Converter={StaticResource BoolToVis}}" Margin="8,4,8,12">
 
                     <Grid.ColumnDefinitions>
-
                         <ColumnDefinition Width="*"/>
-
+                        <ColumnDefinition Width="16"/>
                         <ColumnDefinition Width="Auto"/>
-
                     </Grid.ColumnDefinitions>
 
-                    <DockPanel Grid.Column="0" Margin="0,0,16,0">
+                    <DockPanel Grid.Column="0">
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock Style="{StaticResource PageTitle}" Text="Employés" Margin="0,0,0,2"/>
+                            <TextBlock Text="Fiches + PIN pointeuse" FontSize="13" FontWeight="Bold"
+                                       Foreground="{StaticResource BrushText}" Margin="0,0,0,12"/>
 
-                        <StackPanel DockPanel.Dock="Top">
-
-                            <TextBlock Style="{StaticResource PageTitle}" Text="Employés"/>
-
-                            <TextBlock Style="{StaticResource PageSubtitle}" Text="Fiches + PIN pointeuse"/>
-
-                            <DockPanel Margin="0,0,0,16">
-
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-
-                                    <Button Content="Nouveau" Command="{Binding NouvelEmployeCommand}"/>
-
-                                    <Button Content="Modifier" Style="{StaticResource GhostButton}" Command="{Binding EditerEmployeCommand}"/>
-
-                                    <Button Content="Supprimer" Style="{StaticResource DangerButton}" Command="{Binding SupprimerEmployeCommand}" Margin="0"/>
-
-                                </StackPanel>
-
-                                <TextBox Width="260" HorizontalAlignment="Left"
-
+                            <Grid Margin="0,0,0,10">
+                                <TextBox MinHeight="36" Padding="12,8"
                                          Text="{Binding FiltreEmploye, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="Rechercher (matricule, nom…)" Foreground="#668D99AE"
+                                           Margin="14,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FiltreEmploye}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
 
-                            </DockPanel>
-
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Content="Importer salaires" Style="{StaticResource GhostButton}"
+                                        Command="{Binding ImporterFicheSalaireCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,8,8"
+                                        ToolTip="Fichier Excel « FICHER DE SALAIRE » (feuille SALAIRE ET TAXE)"/>
+                                <Button Content="Nouveau" Command="{Binding NouvelEmployeCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,8,8"/>
+                                <Button Content="Modifier" Style="{StaticResource GhostButton}"
+                                        Command="{Binding EditerEmployeCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,8,8"/>
+                                <Button Content="Supprimer" Style="{StaticResource DangerButton}"
+                                        Command="{Binding SupprimerEmployeCommand}"
+                                        Padding="12,8" MinHeight="36" Margin="0,0,0,8"/>
+                            </WrapPanel>
                         </StackPanel>
 
                         <Border Style="{StaticResource Card}" Padding="8">
-
                             <DataGrid ItemsSource="{Binding Employes}" SelectedItem="{Binding EmployeSelectionne}">
-
                                 <DataGrid.Columns>
-
                                     <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="110"
-
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
-
                                     <DataGridTextColumn Header="Nom" Binding="{Binding Nom}" Width="*"
-
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
-
                                     <DataGridTextColumn Header="Prénom" Binding="{Binding Prenom}" Width="130"
-
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
-
                                     <DataGridTextColumn Header="PIN" Binding="{Binding CodePinZk}" Width="90"
-
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
-
+                                    <DataGridTextColumn Header="Salaire" Binding="{Binding SalaireMensuel, StringFormat=N2}" Width="110"
+                                                        ElementStyle="{StaticResource DataGridCellText}"/>
                                     <DataGridCheckBoxColumn Header="Actif" Binding="{Binding Actif}" Width="70"/>
-
                                 </DataGrid.Columns>
-
                             </DataGrid>
-
                         </Border>
-
                     </DockPanel>
 
-                    <Border Grid.Column="1" Width="300" Style="{StaticResource Card}"
-
+                    <Border Grid.Column="2" Width="360" Style="{StaticResource Card}" Padding="16"
+                            VerticalAlignment="Stretch"
                             Visibility="{Binding EmployeEdition, Converter={StaticResource NullToVis}}">
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Bottom"
+                                    Content="Enregistrer la fiche &amp; paie"
+                                    Command="{Binding SauverEmployeCommand}"
+                                    Margin="0,16,0,0"
+                                    MinHeight="42"
+                                    Padding="14,12"
+                                    HorizontalAlignment="Stretch"/>
 
-                        <StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          CanContentScroll="False">
+                                <StackPanel>
+                                    <TextBlock Text="Fiche employé" FontSize="18" FontWeight="Bold"
+                                               Foreground="{StaticResource BrushText}" Margin="0,0,0,14"/>
 
-                            <TextBlock Text="Fiche" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushText}" Margin="0,0,0,18"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Matricule"/>
+                                    <TextBox Text="{Binding EmployeEdition.Matricule, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Matricule"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Nom"/>
+                                    <TextBox Text="{Binding EmployeEdition.Nom, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <TextBox Text="{Binding EmployeEdition.Matricule, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Prénom"/>
+                                    <TextBox Text="{Binding EmployeEdition.Prenom, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Nom"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="PIN pointeuse"/>
+                                    <TextBox Text="{Binding EmployeEdition.CodePinZk, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <TextBox Text="{Binding EmployeEdition.Nom, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <CheckBox Content="Actif" IsChecked="{Binding EmployeEdition.Actif}" Margin="0,0,0,14"/>
 
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Prénom"/>
+                                    <TextBlock Text="DONNÉES DE PAIE (A PAYER)" Style="{StaticResource SectionLabel}" Margin="0,4,0,10"/>
+                                    <TextBlock Text="Montants journaliers utilisés sur le bulletin."
+                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}"
+                                               Opacity="0.75" Margin="0,0,0,10" TextWrapping="Wrap"/>
 
-                            <TextBox Text="{Binding EmployeEdition.Prenom, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Salaire mensuel"/>
+                                    <TextBox Text="{Binding EmployeEdition.SalaireMensuel, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,6"/>
+                                    <Button Content="Calculer taux base (÷ 26)"
+                                            Style="{StaticResource GhostButton}"
+                                            Command="{Binding RecalculerTauxBaseCommand}"
+                                            Margin="0,0,0,12" Padding="10,6" MinHeight="32"
+                                            HorizontalAlignment="Left"/>
 
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="PIN pointeuse"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux salaire de base / jour"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxSalaireBase, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <TextBox Text="{Binding EmployeEdition.CodePinZk, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux ancienneté / jour"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxAnciennete, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <CheckBox Content="Actif" IsChecked="{Binding EmployeEdition.Actif}"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux transport / jour"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxTransport, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                            <Button Content="Enregistrer" Command="{Binding SauverEmployeCommand}" Margin="0,12,0,0" HorizontalAlignment="Stretch"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux logement / jour"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxLogement, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
-                        </StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux allocations familiales / jour"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxAllocFamiliales, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
 
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux indemnité KM"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxIndemniteKm, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux prime d'assiduité"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxPrimeAssiduite, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux jour de maladie"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxJourMaladie, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux jour férié presté"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxJourFerie, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,10"/>
+
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Taux complément transport"/>
+                                    <TextBox Text="{Binding EmployeEdition.TauxComplementTransport, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,0,8"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
                     </Border>
 
                 </Grid>
@@ -2243,7 +2315,7 @@
 
                         <TextBlock Style="{StaticResource PageTitle}" Text="Rapports"/>
 
-                        <TextBlock Style="{StaticResource PageSubtitle}" Text="Résumé mensuel"/>
+                        <TextBlock Style="{StaticResource PageSubtitle}" Text="Résumé sur la période LT (du 24 au 24, paiement le 25)"/>
 
                         <DockPanel Margin="0,0,0,18">
 
@@ -2310,12 +2382,109 @@
                     </Border>
 
                 </DockPanel>
+                <!-- Modules Paie (in-app) -->
+                <ScrollViewer Visibility="{Binding EstPaie, Converter={StaticResource BoolToVis}}"
+                              VerticalScrollBarVisibility="Auto" Margin="8,4,8,12">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Top">
+                                <Button Content="Importer salaires" Style="{StaticResource GhostButton}"
+                                        Command="{Binding ImporterFicheSalaireCommand}"/>
+                                <Button Content="Actualiser" Style="{StaticResource GhostButton}"
+                                        Command="{Binding RafraichirPaieCommand}"/>
+                                <Button Content="Générer les bulletins" Command="{Binding GenererBulletinsCommand}" Margin="0"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource PageTitle}" Text="Paie &amp; bulletins"/>
+                                <TextBlock Style="{StaticResource PageSubtitle}" Margin="0,4,0,0"
+                                           Text="Bulletins réels (période 24→24) : sync pointeuse puis calcul jusqu’à aujourd’hui. Retenue : retards (3 tolérés)."/>
+                            </StackPanel>
+                        </DockPanel>
 
+                        <Border Style="{StaticResource MessageBanner}" Padding="16,14" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="RÈGLE RETARDS" Foreground="#CCFFFFFF" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding PaieRegleRetards}" Foreground="White" FontSize="13"
+                                           FontWeight="Bold" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
 
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionLabel}" Text="PÉRIODE DE PAIE (mois du paiement)"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Mois paiement" Style="{StaticResource FieldLabel}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBox Width="56" Text="{Binding MoisRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,0"/>
+                                    <TextBlock Text="Année" Style="{StaticResource FieldLabel}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBox Width="80" Text="{Binding AnneeRapport, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,0"/>
+                                    <Button Content="Charger" Style="{StaticResource GhostButton}" Command="{Binding RafraichirPaieCommand}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding PeriodePaieLibelle}" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"
+                                           Foreground="{StaticResource BrushAccent}"/>
+                                <TextBlock Text="{Binding PaieResumeHeuresLibelle}" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <DataGrid ItemsSource="{Binding ResumeMois}" MaxHeight="220" Margin="0,0,0,12">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Matricule" Binding="{Binding Matricule}" Width="100"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Employé" Binding="{Binding NomComplet}" Width="*"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Présents" Binding="{Binding JoursPresents}" Width="80"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Heures" Binding="{Binding HeuresTotales, StringFormat=0.##}" Width="70"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Retards" Binding="{Binding Retards}" Width="70"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Absences" Binding="{Binding Absences}" Width="80"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
 
-                <!-- Paramètres -->
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <DockPanel>
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                        <Button Content="PDF sélection" Style="{StaticResource GhostButton}"
+                                                Command="{Binding ExporterBulletinPdfCommand}"/>
+                                        <Button Content="PDF tous" Command="{Binding ExporterTousBulletinsPdfCommand}" Margin="0"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource SectionLabel}" Text="BULLETINS DU MOIS" Margin="0"/>
+                                        <TextBlock Text="{Binding BulletinsResumeLibelle}" FontWeight="Bold" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <DataGrid ItemsSource="{Binding BulletinsMois}"
+                                          SelectedItem="{Binding BulletinSelectionne}"
+                                          MaxHeight="360">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="140"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Employé" Binding="{Binding Employe.NomComplet}" Width="*"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Total A PAYER" Binding="{Binding TotalAPayer, StringFormat=N2}" Width="110"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Retenue retards" Binding="{Binding RetenueRetards, StringFormat=N2}" Width="110"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                        <DataGridTextColumn Header="Net à payer" Binding="{Binding NetAPayer, StringFormat=N2}" Width="100"
+                                                            ElementStyle="{StaticResource DataGridCellText}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
 
-                <Grid Visibility="{Binding EstParametres, Converter={StaticResource BoolToVis}}" Margin="4,0,4,4">
+<!-- Paramètres -->
+
+                <ScrollViewer Visibility="{Binding EstParametres, Converter={StaticResource BoolToVis}}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Margin="4,0,4,4"
+                              Padding="0,0,6,0"
+                              CanContentScroll="False">
+
+                <Grid Margin="0,0,0,12">
 
                     <Grid.RowDefinitions>
 
@@ -2325,7 +2494,7 @@
 
                         <RowDefinition Height="Auto"/>
 
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
@@ -2441,7 +2610,7 @@
 
                         <!-- Entreprise & journée -->
 
-                        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Stretch">
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Top">
 
                             <StackPanel>
 
@@ -2544,8 +2713,7 @@
                                     </StackPanel>
 
                                 </Border>
-
-                            </StackPanel>
+</StackPanel>
 
                         </Border>
 
@@ -2553,7 +2721,7 @@
 
                         <!-- ZKTeco -->
 
-                        <Border Grid.Column="2" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Stretch">
+                        <Border Grid.Column="2" Style="{StaticResource Card}" Padding="18" VerticalAlignment="Top">
 
                             <DockPanel>
 
@@ -2702,6 +2870,8 @@
                     </Grid>
 
                 </Grid>
+
+                </ScrollViewer>
 
             </Grid>
 

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -64,6 +64,18 @@
       <_ZkWorkerFiles Include="$(_ZkWorkerBin)*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(_ZkWorkerFiles)" DestinationFolder="$(_ZkWorkerDest)" SkipUnchangedFiles="true" Condition="Exists('$(_ZkWorkerBin)ZktecoPullWorker.exe')" />
+  </Target>
+
+  <Target Name="PublishZktecoPullWorker" AfterTargets="Publish">
+    <PropertyGroup>
+      <_ZkWorkerBin>$(MSBuildProjectDirectory)\..\ZktecoPullWorker\bin\$(Configuration)\net48\</_ZkWorkerBin>
+      <_ZkWorkerPublishDest>$(PublishDir)ZktecoPullWorker\</_ZkWorkerPublishDest>
+    </PropertyGroup>
+    <MakeDir Directories="$(_ZkWorkerPublishDest)" Condition="Exists('$(_ZkWorkerBin)ZktecoPullWorker.exe')" />
+    <ItemGroup>
+      <_ZkWorkerPublishFiles Include="$(_ZkWorkerBin)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ZkWorkerPublishFiles)" DestinationFolder="$(_ZkWorkerPublishDest)" SkipUnchangedFiles="true" Condition="Exists('$(_ZkWorkerBin)ZktecoPullWorker.exe')" />
   </Target>
 
 </Project>

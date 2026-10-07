@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Windows;
 using MelodyPresence.Data;
 using MelodyPresence.Models;
@@ -38,14 +38,13 @@ public partial class App : System.Windows.Application
         var autostart = e.Args.Any(a =>
             string.Equals(a, "--autostart", StringComparison.OrdinalIgnoreCase));
 
-        _main = new MainWindow();
-        MainWindow = _main;
-        WindowsNotificationService.BrancherActivation(() =>
-            Dispatcher.Invoke(() => _main?.RestaurerDepuisTray()));
-        _main.Show();
+        if (!DemanderConnexion())
+        {
+            Shutdown();
+            return;
+        }
 
-        if (autostart)
-            _main.MasquerDansTray(premierMasquage: true);
+        OuvrirApplicationPrincipale(autostart);
 
         _listenCts = new CancellationTokenSource();
         var token = _listenCts.Token;
@@ -55,10 +54,77 @@ public partial class App : System.Windows.Application
             {
                 if (_showSignal.WaitOne(400))
                 {
-                    Dispatcher.Invoke(() => _main?.RestaurerDepuisTray());
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (!AuthService.EstConnecte)
+                        {
+                            if (!DemanderConnexion())
+                                return;
+                            OuvrirApplicationPrincipale(autostart: false);
+                            return;
+                        }
+
+                        _main?.RestaurerDepuisTray();
+                    });
                 }
             }
         }, token);
+    }
+
+    private bool DemanderConnexion()
+    {
+        var login = new LoginWindow();
+        return login.ShowDialog() == true && AuthService.EstConnecte;
+    }
+
+    private void OuvrirApplicationPrincipale(bool autostart)
+    {
+        if (_main != null)
+        {
+            _main.RestaurerDepuisTray();
+            return;
+        }
+
+        _main = new MainWindow();
+        MainWindow = _main;
+        WindowsNotificationService.BrancherActivation(() =>
+            Dispatcher.Invoke(() =>
+            {
+                if (!AuthService.EstConnecte)
+                {
+                    if (DemanderConnexion())
+                        OuvrirApplicationPrincipale(false);
+                    return;
+                }
+
+                _main?.RestaurerDepuisTray();
+            }));
+        _main.Show();
+
+        if (autostart)
+            _main.MasquerDansTray(premierMasquage: true);
+        else
+            _main.RestaurerDepuisTray();
+    }
+
+    public void DeconnexionEtRelancerLogin()
+    {
+        AuthService.Deconnecter();
+        if (_main != null)
+        {
+            _main.AllowClose = true;
+            _main.Close();
+            _main = null;
+            MainWindow = null;
+        }
+
+        if (!DemanderConnexion())
+        {
+            Shutdown();
+            return;
+        }
+
+        OuvrirApplicationPrincipale(autostart: false);
     }
 
     private static void SynchroniserDemarrageWindows()

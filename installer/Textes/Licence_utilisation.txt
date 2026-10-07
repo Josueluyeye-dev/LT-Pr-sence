@@ -1,0 +1,38 @@
+CONDITIONS D'UTILISATION — LT SERVICES PRÉSENCE
+Version du document : 1.0
+
+Éditeur logiciel : IMPACT Entreprises
+Site : https://impact-entreprises.net/
+Client destinataire : LT Services
+
+1. OBJET
+   LT Services Présence est un logiciel de gestion de présence,
+   de synchronisation des pointeuses et de préparation des
+   bulletins de paie adaptés au contexte d'utilisation de
+   LT Services (République Démocratique du Congo).
+
+2. DROITS
+   Tous droits réservés. La reproduction, la distribution ou la
+   modification non autorisée du logiciel ou de sa documentation
+   est interdite sauf accord écrit d'IMPACT Entreprises.
+
+3. UTILISATION
+   Vous vous engagez à utiliser le logiciel conformément à la loi,
+   notamment en matière de protection des données personnelles des
+   salariés et de conservation des documents de paie et de présence.
+
+4. GARANTIE
+   Le logiciel est fourni « en l'état ». IMPACT Entreprises ne
+   saurait être tenu responsable des dommages indirects liés à
+   l'utilisation du logiciel. La conformité des calculs de paie
+   avec la réglementation en vigueur relève de la responsabilité
+   de l'utilisateur final et de son expert-comptable ou conseiller.
+
+5. DONNÉES
+   Les données saisies restent sous la responsabilité de
+   l'organisme employeur (LT Services). Prévoir des sauvegardes
+   régulières de la base locale.
+
+En cliquant sur « J'accepte », vous confirmez avoir pris connaissance
+de ces conditions et les accepter. Si vous refusez, l'installation
+ne pourra pas continuer.

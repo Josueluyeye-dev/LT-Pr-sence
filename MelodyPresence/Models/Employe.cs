@@ -9,6 +9,21 @@ public class Employe
     public string? CodePinZk { get; set; }
     public bool Actif { get; set; } = true;
 
+    /// <summary>Salaire mensuel de base (devise entreprise, ex. USD / CDF).</summary>
+    public decimal SalaireMensuel { get; set; }
+
+    /// <summary>Taux journaliers section « A PAYER » (bulletin LT).</summary>
+    public decimal TauxSalaireBase { get; set; }
+    public decimal TauxAnciennete { get; set; }
+    public decimal TauxTransport { get; set; }
+    public decimal TauxLogement { get; set; }
+    public decimal TauxAllocFamiliales { get; set; }
+    public decimal TauxIndemniteKm { get; set; }
+    public decimal TauxPrimeAssiduite { get; set; }
+    public decimal TauxJourMaladie { get; set; }
+    public decimal TauxJourFerie { get; set; }
+    public decimal TauxComplementTransport { get; set; }
+
     public string NomComplet => string.IsNullOrWhiteSpace(Prenom) ? Nom : $"{Nom} {Prenom}".Trim();
 
     public string Initiales

@@ -74,10 +74,32 @@ MelodyPresence/
 
 ## Licence / éditeur
 
-LT Services — LT Services Présence 1.0.0
+**LT Services** — client  
+Logiciel conçu par **[IMPACT Entreprises](https://impact-entreprises.net/)**
 
-## Mise à jour
+## Dépôt GitHub
+
+Code source et releases : [Josueluyeye-dev/LT-Pr-sence](https://github.com/Josueluyeye-dev/LT-Pr-sence)
+
+## Installateur
+
+```powershell
+.\installer\CreerInstallateur.ps1
+```
+
+Sortie : `installer\output\LT_Presence_Setup_*.exe`
+
+## Publication d'une version
+
+```powershell
+.\installer\PublierRelease.ps1 -Version "1.0.1" -Notes "Description des changements"
+```
+
+GitHub Actions compile l'installateur, crée la Release et met à jour `installer/updates/version.json` (SHA256 + URL).
+
+## Mise à jour (clients)
 
 Dans **Paramètres**, bouton **Vérifier les mises à jour**.
-Manifeste : `installer/updates/version.json` (GitHub `Mavuisra/MelodyPresence`).
+
+Manifeste : `https://raw.githubusercontent.com/Josueluyeye-dev/LT-Pr-sence/main/installer/updates/version.json`
 

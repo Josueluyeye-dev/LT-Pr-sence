@@ -28,4 +28,7 @@ public class ParametresApplication
 
     /// <summary>Lancer l'application au démarrage de Windows.</summary>
     public bool DemarrerAvecWindows { get; set; } = true;
+
+    /// <summary>Chemin vers MelodyPaieRDC.exe (modules Calcul, Bulletins, Déclarations…).</summary>
+    public string? CheminMelodyPaie { get; set; }
 }

@@ -5,10 +5,10 @@ namespace MelodyPresence.Services;
 /// </summary>
 public static class ApplicationUpdateDefaults
 {
-    public const string GitHubRepo = "Mavuisra/MelodyPresence";
+    public const string GitHubRepo = "Josueluyeye-dev/LT-Pr-sence";
 
     public const string ManifestUrlParDefaut =
-        "https://raw.githubusercontent.com/Mavuisra/MelodyPresence/master/installer/updates/version.json";
+        "https://raw.githubusercontent.com/Josueluyeye-dev/LT-Pr-sence/main/installer/updates/version.json";
 
     public static string ReleasesLatestApiUrl =>
         $"https://api.github.com/repos/{GitHubRepo}/releases/latest";

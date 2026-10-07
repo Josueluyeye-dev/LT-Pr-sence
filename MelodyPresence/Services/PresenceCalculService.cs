@@ -96,15 +96,31 @@ public static class PresenceCalculService
         int annee,
         int mois,
         TimeSpan? heureDebut = null,
+        TimeSpan? heureLimite = null,
+        DateTime? aujourdhui = null)
+    {
+        var bornes = PeriodePaieLtService.ObtenirBornes(annee, mois);
+        var fin = PeriodePaieLtService.FinEffective(bornes, aujourdhui);
+        if (fin < bornes.Debut)
+            return Array.Empty<JourPresenceLigne>();
+        return CalculerPeriode(employes, pointages, bornes.Debut, fin, heureDebut, heureLimite);
+    }
+
+    public static IReadOnlyList<JourPresenceLigne> CalculerPeriode(
+        IEnumerable<Employe> employes,
+        IEnumerable<Pointage> pointages,
+        DateTime debut,
+        DateTime finInclusive,
+        TimeSpan? heureDebut = null,
         TimeSpan? heureLimite = null)
     {
-        var debut = new DateTime(annee, mois, 1);
-        var fin = debut.AddMonths(1);
+        debut = debut.Date;
+        var finExclue = finInclusive.Date.AddDays(1);
         var actifs = employes.Where(e => e.Actif).ToList();
-        var pts = pointages.Where(p => p.Horodatage >= debut && p.Horodatage < fin).ToList();
+        var pts = pointages.Where(p => p.Horodatage >= debut && p.Horodatage < finExclue).ToList();
         var result = new List<JourPresenceLigne>();
 
-        for (var d = debut; d < fin; d = d.AddDays(1))
+        for (var d = debut; d < finExclue; d = d.AddDays(1))
         {
             if (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
                 continue;
@@ -120,9 +136,10 @@ public static class PresenceCalculService
         int annee,
         int mois,
         TimeSpan? heureDebut = null,
-        TimeSpan? heureLimite = null)
+        TimeSpan? heureLimite = null,
+        DateTime? aujourdhui = null)
     {
-        var lignes = CalculerMois(employes, pointages, annee, mois, heureDebut, heureLimite);
+        var lignes = CalculerMois(employes, pointages, annee, mois, heureDebut, heureLimite, aujourdhui);
         return lignes
             .GroupBy(l => l.EmployeId)
             .Select(g =>
@@ -138,7 +155,8 @@ public static class PresenceCalculService
                     emp,
                     g.Count(x => x.Statut is "Présent" or "Parti" or "En cours" or "Retard"),
                     Math.Round(g.Sum(x => x.Heures), 2),
-                    g.Count(x => x.Statut is "Absent" or "Non pointé"),
+                    // « Non pointé » (journée en cours) n’est pas une absence
+                    g.Count(x => x.Statut == "Absent"),
                     g.Count(x => x.EstEnRetard)
                 );
             })

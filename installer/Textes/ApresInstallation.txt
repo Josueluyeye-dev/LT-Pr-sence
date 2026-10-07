@@ -1,0 +1,29 @@
+══════════════════════════════════════════════════════════════
+   LT SERVICES PRÉSENCE — Prochaines étapes
+══════════════════════════════════════════════════════════════
+
+  Application conçue et livrée par IMPACT Entreprises
+  pour LT Services.
+  Site web : https://impact-entreprises.net/
+  Contact : contact@impact-entreprises.net · +243 898 923 309
+
+PREMIER LANCEMENT
+  Au premier démarrage, créez votre compte administrateur
+  via l'écran de connexion (création de compte).
+  L'application initialise ensuite la base de données locale
+  (SQLite) dans le profil utilisateur Windows.
+
+CONFIGURATION RECOMMANDÉE
+  • Paramètres → pointeuses ZKTeco (IP, port, sync)
+  • Employés → taux et données de paie
+  • Période de paie LT : du 24 au 24, paiement le 25
+
+SAUVEGARDES
+  Sauvegardez régulièrement la base de données, surtout avant
+  une mise à jour majeure ou un changement de poste.
+
+ASSISTANCE
+  Pour toute question d'installation ou de mise à jour, contactez
+  IMPACT Entreprises (Kinshasa — Gombe).
+
+Bon travail avec LT Services Présence.

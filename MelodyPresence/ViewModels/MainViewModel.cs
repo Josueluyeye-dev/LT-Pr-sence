@@ -20,8 +20,8 @@ public class MainViewModel : ObservableObject
     private bool _statutEstErreur;
     private string _messageErreur = "";
     private DateTime _datePresence = DateTime.Today;
-    private int _moisRapport = DateTime.Today.Month;
-    private int _anneeRapport = DateTime.Today.Year;
+    private int _moisRapport = PeriodePaieLtService.PeriodeCourante().MoisPaiement;
+    private int _anneeRapport = PeriodePaieLtService.PeriodeCourante().AnneePaiement;
     private Employe? _employeSelectionne;
     private Employe? _employeEdition;
     private JourPresenceLigne? _ligneJourSelectionnee;
@@ -122,12 +122,22 @@ public class MainViewModel : ObservableObject
         VerifierMiseAJourCommand = new RelayCommand(
             async _ => await VerifierMiseAJourAsync(),
             _ => !MiseAJourEnCours);
+        ExporterHeuresVersPaieCommand = new RelayCommand(_ => ExporterHeuresVersPaie());
+        ExporterPointagesVersPaieCommand = new RelayCommand(_ => ExporterPointagesVersPaie());
+        RafraichirPaieCommand = new RelayCommand(_ => ChargerModulePaie());
+        GenererBulletinsCommand = new RelayCommand(async _ => await GenererBulletinsMoisAsync());
+        ExporterBulletinPdfCommand = new RelayCommand(_ => ExporterBulletinSelectionPdf(), _ => BulletinSelectionne != null);
+        ExporterTousBulletinsPdfCommand = new RelayCommand(_ => ExporterTousBulletinsPdf(), _ => BulletinsMois.Count > 0);
+        ImporterFicheSalaireCommand = new RelayCommand(_ => ImporterFicheSalaire());
+        DeconnecterCommand = new RelayCommand(_ => Deconnecter());
+        RecalculerTauxBaseCommand = new RelayCommand(_ => RecalculerTauxBaseEmploye(), _ => EmployeEdition != null);
 
         ZktecoSynchronisationService.SynchroReussie += (utc, nb) =>
             Application.Current?.Dispatcher.Invoke(() =>
             {
                 _syncErreur = "";
                 RafraichirTout();
+                ChargerModulePaie();
                 ActualiserEtatSync();
                 StatutBarre = nb > 0
                     ? $"✓ Synchronisation terminée — {nb} nouveau(x) pointage(s)"
@@ -180,9 +190,11 @@ public class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(EstEmployes));
                 OnPropertyChanged(nameof(EstPresence));
                 OnPropertyChanged(nameof(EstRapports));
+                OnPropertyChanged(nameof(EstPaie));
                 OnPropertyChanged(nameof(EstParametres));
                 if (value == "Présence") ChargerPresenceJour();
                 if (value == "Rapports") ChargerRapportMois();
+                if (value == "Paie") ChargerModulePaie();
                 if (value == "Employés") ChargerEmployes();
                 if (value == "Accueil") ChargerAccueil();
                 if (value == "Paramètres") ChargerParametres();
@@ -194,6 +206,7 @@ public class MainViewModel : ObservableObject
     public bool EstEmployes => Onglet == "Employés";
     public bool EstPresence => Onglet == "Présence";
     public bool EstRapports => Onglet == "Rapports";
+    public bool EstPaie => Onglet == "Paie";
     public bool EstParametres => Onglet == "Paramètres";
 
     public string StatutBarre
@@ -271,13 +284,27 @@ public class MainViewModel : ObservableObject
     public int MoisRapport
     {
         get => _moisRapport;
-        set => SetProperty(ref _moisRapport, value);
+        set
+        {
+            if (SetProperty(ref _moisRapport, value))
+            {
+                OnPropertyChanged(nameof(PaieResumeHeuresLibelle));
+                OnPropertyChanged(nameof(PeriodePaieLibelle));
+            }
+        }
     }
 
     public int AnneeRapport
     {
         get => _anneeRapport;
-        set => SetProperty(ref _anneeRapport, value);
+        set
+        {
+            if (SetProperty(ref _anneeRapport, value))
+            {
+                OnPropertyChanged(nameof(PaieResumeHeuresLibelle));
+                OnPropertyChanged(nameof(PeriodePaieLibelle));
+            }
+        }
     }
 
     public Employe? EmployeSelectionne
@@ -585,9 +612,26 @@ public class MainViewModel : ObservableObject
         }
     }
 
-    public string NomUtilisateurAffiche => "Josue Luyeye";
-    public string RoleUtilisateurAffiche => "Administrateur";
-    public string InitialesUtilisateur => "JL";
+    public string NomUtilisateurAffiche =>
+        AuthService.UtilisateurCourant?.NomComplet
+        ?? AuthService.UtilisateurCourant?.Identifiant
+        ?? "Utilisateur";
+
+    public string RoleUtilisateurAffiche =>
+        AuthService.UtilisateurCourant?.Role ?? "—";
+
+    public string InitialesUtilisateur
+    {
+        get
+        {
+            var n = NomUtilisateurAffiche.Trim();
+            if (string.IsNullOrEmpty(n)) return "?";
+            var parts = n.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1)
+                return parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant();
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}";
+        }
+    }
 
     public string TerminalCarteTitre => TerminalConfigure ? "Terminal connecté" : "Terminal non configuré";
     public string TerminalCarteDetail => TerminalConfigure ? "Prêt pour le pointage." : "Configuration requise";
@@ -731,6 +775,41 @@ public class MainViewModel : ObservableObject
     public ICommand ConfigurerTerminalCommand { get; }
     public ICommand TesterNotificationCommand { get; }
     public ICommand VerifierMiseAJourCommand { get; }
+    public ICommand ExporterHeuresVersPaieCommand { get; }
+    public ICommand ExporterPointagesVersPaieCommand { get; }
+    public ICommand RafraichirPaieCommand { get; }
+    public ICommand GenererBulletinsCommand { get; }
+    public ICommand ExporterBulletinPdfCommand { get; }
+    public ICommand ExporterTousBulletinsPdfCommand { get; }
+    public ICommand ImporterFicheSalaireCommand { get; }
+    public ICommand DeconnecterCommand { get; }
+    public ICommand RecalculerTauxBaseCommand { get; }
+
+    public ObservableCollection<BulletinPaie> BulletinsMois { get; } = new();
+
+    private BulletinPaie? _bulletinSelectionne;
+    public BulletinPaie? BulletinSelectionne
+    {
+        get => _bulletinSelectionne;
+        set => SetProperty(ref _bulletinSelectionne, value);
+    }
+
+    public string PaieRegleRetards => RetardSanctionService.LibelleRegle;
+
+    public string PaieResumeHeuresLibelle
+    {
+        get
+        {
+            var b = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+            return $"{ResumeMois.Count} employé(s) · {ResumeMois.Sum(x => x.HeuresTotales):0.##} h · {PeriodePaieLtService.LibelleCourt(b)}";
+        }
+    }
+
+    public string PeriodePaieLibelle =>
+        PeriodePaieLtService.LibelleSituation(PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport));
+
+    public string BulletinsResumeLibelle =>
+        $"{BulletinsMois.Count} bulletin(s) · Net total {BulletinsMois.Sum(b => b.NetAPayer):N2}";
 
     public string VersionApplication =>
         ApplicationUpdateService.FormaterVersion(ApplicationUpdateService.ObtenirVersionInstallee());
@@ -759,6 +838,8 @@ public class MainViewModel : ObservableObject
         ChargerPresenceJour();
         ChargerAccueil();
         ChargerParametres();
+        if (EstRapports || EstPaie)
+            ChargerModulePaie();
         ActualiserEtatSync();
         StatutBarre = "Données à jour";
     }
@@ -1060,13 +1141,16 @@ public class MainViewModel : ObservableObject
     {
         using var db = new PresenceDbContext();
         var employes = db.Employes.AsNoTracking().ToList();
-        var debut = new DateTime(AnneeRapport, MoisRapport, 1);
-        var fin = debut.AddMonths(1);
-        var pts = db.Pointages.AsNoTracking()
-            .Where(p => p.Horodatage >= debut && p.Horodatage < fin)
-            .ToList();
+        var bornes = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+        var finEff = PeriodePaieLtService.FinEffective(bornes);
+        var pts = finEff < bornes.Debut
+            ? []
+            : db.Pointages.AsNoTracking()
+                .Where(p => p.Horodatage >= bornes.Debut && p.Horodatage < finEff.AddDays(1))
+                .ToList();
         var (hDebut, hLimite) = LireHoraires(db);
-        var resume = PresenceCalculService.ResumeMensuel(employes, pts, AnneeRapport, MoisRapport, hDebut, hLimite);
+        var resume = PresenceCalculService.ResumeMensuel(
+            employes, pts, AnneeRapport, MoisRapport, hDebut, hLimite, DateTime.Today);
         ResumeMois.Clear();
         foreach (var (emp, jours, heures, abs, retards) in resume)
         {
@@ -1080,6 +1164,195 @@ public class MainViewModel : ObservableObject
                 Retards = retards
             });
         }
+        OnPropertyChanged(nameof(PaieResumeHeuresLibelle));
+        OnPropertyChanged(nameof(PeriodePaieLibelle));
+    }
+
+    private void ChargerModulePaie()
+    {
+        ChargerRapportMois();
+        BulletinsMois.Clear();
+        foreach (var b in CalculBulletinService.ListerMois(AnneeRapport, MoisRapport))
+            BulletinsMois.Add(b);
+        OnPropertyChanged(nameof(BulletinsResumeLibelle));
+        StatutBarre = "Paie — heures et bulletins du mois";
+    }
+
+    private void Deconnecter()
+    {
+        var ok = MessageBox.Show(
+            "Se déconnecter de LT Présence ?",
+            "Déconnexion",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (ok != MessageBoxResult.Yes)
+            return;
+
+        if (Application.Current is App app)
+            app.DeconnexionEtRelancerLogin();
+    }
+
+    private void ImporterFicheSalaire()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Fiche salaire Excel (*.xlsx)|*.xlsx",
+            Title = "Importer FICHER DE SALAIRE (feuille SALAIRE ET TAXE)"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var r = FicheSalaireImportService.Importer(dlg.FileName);
+            ChargerEmployes();
+            ChargerModulePaie();
+            StatutBarre = $"✓ Salaires importés : {r.MisAJour}/{r.LignesLues} (non matchés : {r.NonMatchés})";
+            MessageBox.Show(
+                $"Import terminé.\n\nLignes lues : {r.LignesLues}\nSalaires mis à jour : {r.MisAJour}\nNon trouvés : {r.NonMatchés}",
+                "Fiche salaire",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Import fiche salaire", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private async Task GenererBulletinsMoisAsync()
+    {
+        // Synchronisation pointeuse avant calcul réel
+        StatutBarre = "Synchronisation pointeuse avant bulletins…";
+        var (ok, err, nb) = await ZktecoSynchronisationService.TrySynchroniserAsync();
+        if (!ok)
+        {
+            var cont = MessageBox.Show(
+                $"Synchronisation impossible :\n{err}\n\nGénérer quand même avec les pointages déjà en base ?",
+                "Bulletins", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (cont != MessageBoxResult.Yes)
+            {
+                StatutBarre = "Génération annulée — sync échouée";
+                return;
+            }
+        }
+        else
+        {
+            StatutBarre = $"✓ Sync OK ({nb} nouveau(x)) — calcul des bulletins…";
+            ChargerPresenceJour();
+            ChargerAccueil();
+        }
+
+        var sansSalaire = 0;
+        using (var db = new PresenceDbContext())
+            sansSalaire = db.Employes.Count(e => e.Actif && e.SalaireMensuel <= 0 && e.TauxSalaireBase <= 0);
+
+        if (sansSalaire > 0)
+        {
+            var okSal = MessageBox.Show(
+                $"{sansSalaire} employé(s) actif(s) n’ont pas de salaire / taux A PAYER.\n" +
+                "Leurs bulletins auront un net à 0. Continuer ?",
+                "Bulletins", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (okSal != MessageBoxResult.Yes)
+                return;
+        }
+
+        var bornes = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+        var liste = CalculBulletinService.GenererMois(AnneeRapport, MoisRapport);
+        BulletinsMois.Clear();
+        foreach (var b in liste)
+            BulletinsMois.Add(b);
+        OnPropertyChanged(nameof(BulletinsResumeLibelle));
+        ChargerRapportMois();
+        var situation = PeriodePaieLtService.LibelleSituation(bornes);
+        StatutBarre = $"✓ {liste.Count} bulletin(s) réel(s) — {situation}";
+        WindowsNotificationService.NotifierInfo(
+            $"{liste.Count} bulletin(s) généré(s)\n{situation}",
+            "Bulletins LT Présence");
+    }
+
+    private void ExporterBulletinSelectionPdf()
+    {
+        if (BulletinSelectionne == null)
+            return;
+        var dlg = new SaveFileDialog
+        {
+            Filter = "PDF (*.pdf)|*.pdf",
+            FileName = $"{BulletinSelectionne.Numero}.pdf"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+        BulletinPdfService.Exporter(BulletinSelectionne, NomEntrepriseCourant(), dlg.FileName);
+        StatutBarre = "✓ Bulletin PDF exporté";
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); }
+        catch { /* ignore */ }
+    }
+
+    private void ExporterTousBulletinsPdf()
+    {
+        if (BulletinsMois.Count == 0)
+        {
+            MessageBox.Show("Générez d’abord les bulletins du mois.", "Bulletins");
+            return;
+        }
+
+        var dlg = new OpenFolderDialog { Title = "Dossier pour les PDF bulletins" };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        BulletinPdfService.ExporterTous(BulletinsMois, NomEntrepriseCourant(), dlg.FolderName);
+        StatutBarre = $"✓ {BulletinsMois.Count} PDF exportés";
+        MessageBox.Show($"Bulletins enregistrés dans :\n{dlg.FolderName}", "Bulletins");
+    }
+
+    private void ExporterHeuresVersPaie()
+    {
+        ChargerRapportMois();
+        if (ResumeMois.Count == 0)
+        {
+            MessageBox.Show("Aucune donnée d’heures pour ce mois.", "Export Paie");
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Filter = "CSV Paie (*.csv)|*.csv",
+            FileName = $"LT_Presence_Heures_{AnneeRapport}{MoisRapport:D2}.csv"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        PaieExportService.ExporterHeuresMoisCsv(
+            dlg.FileName, NomEntrepriseCourant(), AnneeRapport, MoisRapport, ResumeMois.ToList());
+        StatutBarre = "✓ Export heures → Paie terminé";
+        MessageBox.Show("Export CSV des heures enregistré.", "Paie", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void ExporterPointagesVersPaie()
+    {
+        using var db = new PresenceDbContext();
+        var bornes = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+        var finExclue = bornes.Fin.AddDays(1);
+        var employes = db.Employes.AsNoTracking().ToDictionary(e => e.Id);
+        var pts = db.Pointages.AsNoTracking()
+            .Where(p => p.Horodatage >= bornes.Debut && p.Horodatage < finExclue)
+            .ToList();
+        if (pts.Count == 0)
+        {
+            MessageBox.Show("Aucun pointage pour ce mois.", "Export Paie");
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Filter = "CSV Pointages (*.csv)|*.csv",
+            FileName = $"LT_Presence_Pointages_{AnneeRapport}{MoisRapport:D2}.csv"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        PaieExportService.ExporterPointagesCsv(dlg.FileName, pts, employes);
+        StatutBarre = "✓ Export pointages → Paie terminé";
     }
 
     private void NouvelEmploye()
@@ -1091,15 +1364,7 @@ public class MainViewModel : ObservableObject
     private void EditerEmploye()
     {
         if (EmployeSelectionne == null) return;
-        EmployeEdition = new Employe
-        {
-            Id = EmployeSelectionne.Id,
-            Matricule = EmployeSelectionne.Matricule,
-            Nom = EmployeSelectionne.Nom,
-            Prenom = EmployeSelectionne.Prenom,
-            CodePinZk = EmployeSelectionne.CodePinZk,
-            Actif = EmployeSelectionne.Actif
-        };
+        EmployeEdition = ClonerEmploye(EmployeSelectionne);
     }
 
     private void SauverEmploye()
@@ -1110,6 +1375,10 @@ public class MainViewModel : ObservableObject
             MessageBox.Show("Matricule et nom sont obligatoires.", "LT Services");
             return;
         }
+
+        NormaliserMontantsPaie(EmployeEdition);
+        if (EmployeEdition.SalaireMensuel > 0 && EmployeEdition.TauxSalaireBase <= 0)
+            RubriquesAPayerLt.CompleterTauxSiBesoin(EmployeEdition);
 
         try
         {
@@ -1122,14 +1391,9 @@ public class MainViewModel : ObservableObject
                     return;
                 }
 
-                db.Employes.Add(new Employe
-                {
-                    Matricule = EmployeEdition.Matricule.Trim(),
-                    Nom = EmployeEdition.Nom.Trim(),
-                    Prenom = EmployeEdition.Prenom?.Trim() ?? "",
-                    CodePinZk = string.IsNullOrWhiteSpace(EmployeEdition.CodePinZk) ? null : EmployeEdition.CodePinZk.Trim(),
-                    Actif = EmployeEdition.Actif
-                });
+                var nouveau = new Employe();
+                AppliquerFicheEmploye(nouveau, EmployeEdition);
+                db.Employes.Add(nouveau);
             }
             else
             {
@@ -1140,22 +1404,91 @@ public class MainViewModel : ObservableObject
                     return;
                 }
 
-                e.Matricule = EmployeEdition.Matricule.Trim();
-                e.Nom = EmployeEdition.Nom.Trim();
-                e.Prenom = EmployeEdition.Prenom?.Trim() ?? "";
-                e.CodePinZk = string.IsNullOrWhiteSpace(EmployeEdition.CodePinZk) ? null : EmployeEdition.CodePinZk.Trim();
-                e.Actif = EmployeEdition.Actif;
+                AppliquerFicheEmploye(e, EmployeEdition);
             }
 
             db.SaveChanges();
             EmployeEdition = null;
             ChargerEmployes();
-            StatutBarre = "Employé enregistré";
+            StatutBarre = "Employé et données de paie enregistrés";
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Erreur");
         }
+    }
+
+    private void RecalculerTauxBaseEmploye()
+    {
+        if (EmployeEdition == null) return;
+        if (EmployeEdition.SalaireMensuel <= 0)
+        {
+            MessageBox.Show("Indiquez d’abord le salaire mensuel.", "Paie");
+            return;
+        }
+
+        var maj = ClonerEmploye(EmployeEdition);
+        maj.TauxSalaireBase = decimal.Round(
+            maj.SalaireMensuel / RubriquesAPayerLt.JoursReference, 2, MidpointRounding.AwayFromZero);
+        EmployeEdition = maj;
+        StatutBarre = $"Taux salaire de base = {maj.TauxSalaireBase:N2} (mensuel ÷ 26)";
+    }
+
+    private static Employe ClonerEmploye(Employe s) => new()
+    {
+        Id = s.Id,
+        Matricule = s.Matricule,
+        Nom = s.Nom,
+        Prenom = s.Prenom,
+        CodePinZk = s.CodePinZk,
+        Actif = s.Actif,
+        SalaireMensuel = s.SalaireMensuel,
+        TauxSalaireBase = s.TauxSalaireBase,
+        TauxAnciennete = s.TauxAnciennete,
+        TauxTransport = s.TauxTransport,
+        TauxLogement = s.TauxLogement,
+        TauxAllocFamiliales = s.TauxAllocFamiliales,
+        TauxIndemniteKm = s.TauxIndemniteKm,
+        TauxPrimeAssiduite = s.TauxPrimeAssiduite,
+        TauxJourMaladie = s.TauxJourMaladie,
+        TauxJourFerie = s.TauxJourFerie,
+        TauxComplementTransport = s.TauxComplementTransport
+    };
+
+    private static void AppliquerFicheEmploye(Employe cible, Employe source)
+    {
+        cible.Matricule = source.Matricule.Trim();
+        cible.Nom = source.Nom.Trim();
+        cible.Prenom = source.Prenom?.Trim() ?? "";
+        cible.CodePinZk = string.IsNullOrWhiteSpace(source.CodePinZk) ? null : source.CodePinZk.Trim();
+        cible.Actif = source.Actif;
+        cible.SalaireMensuel = source.SalaireMensuel;
+        cible.TauxSalaireBase = source.TauxSalaireBase;
+        cible.TauxAnciennete = source.TauxAnciennete;
+        cible.TauxTransport = source.TauxTransport;
+        cible.TauxLogement = source.TauxLogement;
+        cible.TauxAllocFamiliales = source.TauxAllocFamiliales;
+        cible.TauxIndemniteKm = source.TauxIndemniteKm;
+        cible.TauxPrimeAssiduite = source.TauxPrimeAssiduite;
+        cible.TauxJourMaladie = source.TauxJourMaladie;
+        cible.TauxJourFerie = source.TauxJourFerie;
+        cible.TauxComplementTransport = source.TauxComplementTransport;
+    }
+
+    private static void NormaliserMontantsPaie(Employe e)
+    {
+        static decimal Pos(decimal v) => v < 0 ? 0 : v;
+        e.SalaireMensuel = Pos(e.SalaireMensuel);
+        e.TauxSalaireBase = Pos(e.TauxSalaireBase);
+        e.TauxAnciennete = Pos(e.TauxAnciennete);
+        e.TauxTransport = Pos(e.TauxTransport);
+        e.TauxLogement = Pos(e.TauxLogement);
+        e.TauxAllocFamiliales = Pos(e.TauxAllocFamiliales);
+        e.TauxIndemniteKm = Pos(e.TauxIndemniteKm);
+        e.TauxPrimeAssiduite = Pos(e.TauxPrimeAssiduite);
+        e.TauxJourMaladie = Pos(e.TauxJourMaladie);
+        e.TauxJourFerie = Pos(e.TauxJourFerie);
+        e.TauxComplementTransport = Pos(e.TauxComplementTransport);
     }
 
     private void SupprimerEmploye()
@@ -1476,12 +1809,3 @@ public class MainViewModel : ObservableObject
     }
 }
 
-public class ResumeMoisItem
-{
-    public string Matricule { get; set; } = "";
-    public string NomComplet { get; set; } = "";
-    public int JoursPresents { get; set; }
-    public double HeuresTotales { get; set; }
-    public int Absences { get; set; }
-    public int Retards { get; set; }
-}

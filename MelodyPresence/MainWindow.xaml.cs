@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,6 +15,10 @@ public partial class MainWindow : Window
     private Forms.NotifyIcon? _tray;
     private bool _fermetureDefinitive;
     private bool _ballonMasquageDejaAffiche;
+    private bool _pretPourTray;
+
+    /// <summary>Autorise la fermeture réelle (déconnexion / quitter).</summary>
+    public bool AllowClose { get; set; }
 
     public MainWindow()
     {
@@ -22,6 +26,8 @@ public partial class MainWindow : Window
         InitialiserTray();
         StateChanged += (_, _) =>
         {
+            // Évite de masquer au tout premier affichage (certains PC envoient Minimized un instant).
+            if (!_pretPourTray) return;
             if (WindowState == WindowState.Minimized)
                 MasquerDansTray(premierMasquage: false);
         };
@@ -95,6 +101,7 @@ public partial class MainWindow : Window
     private void QuitterApplication()
     {
         _fermetureDefinitive = true;
+        AllowClose = true;
         if (_tray != null)
         {
             _tray.Visible = false;
@@ -107,7 +114,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (!_fermetureDefinitive)
+        if (!AllowClose && !_fermetureDefinitive)
         {
             e.Cancel = true;
             MasquerDansTray(premierMasquage: false);
@@ -131,6 +138,7 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        _pretPourTray = true;
         var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280))
         {
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
