@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -10,10 +10,10 @@
     <RootNamespace>MelodyPresence</RootNamespace>
     <AssemblyName>MelodyPresence</AssemblyName>
     <Company>LT Services</Company>
-    <Product>LT Services PrÃ©sence</Product>
-    <AssemblyTitle>LT Services PrÃ©sence</AssemblyTitle>
-    <Description>Gestion de prÃ©sence â€” vous Ãªtes dans de bonnes mains</Description>
-    <Version>1.0.0</Version>
+    <Product>LT Services PrÃƒÂ©sence</Product>
+    <AssemblyTitle>LT Services PrÃƒÂ©sence</AssemblyTitle>
+    <Description>Gestion de prÃƒÂ©sence Ã¢â‚¬â€ vous ÃƒÂªtes dans de bonnes mains</Description>
+    <Version>1.0.3</Version>
     <ApplicationIcon>Assets\lt_services.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -32,13 +32,13 @@
     <Content Include="Assets\toast_logo_circle.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Liste employés LT + fiche salaire : préchargés à la 1re installation -->
+  <!-- Liste employÃ©s LT + fiche salaire : prÃ©chargÃ©s Ã  la 1re installation -->
   <ItemGroup>
     <Content Include="Assets\Seed\lt_services_employes.csv" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Seed\FICHER_DE_SALAIRE_LT.xlsx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Ã‰vite les collisions WPF / WinForms (NotifyIcon seulement). -->
+  <!-- Ãƒâ€°vite les collisions WPF / WinForms (NotifyIcon seulement). -->
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
@@ -85,4 +85,5 @@
   </Target>
 
 </Project>
+
 
