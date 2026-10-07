@@ -25,9 +25,10 @@ PRÉREQUIS
   • Droits administrateur pour une installation sous Program Files
   • Accès réseau aux pointeuses ZKTeco (selon votre déploiement)
 
-CONSEIL
-  Fermez LT Services Présence si elle est déjà ouverte avant de
-  poursuivre, afin d'éviter tout conflit lors de la mise à jour
-  des fichiers.
+CONSEIL (IMPORTANT EN MISE À JOUR)
+  Fermez LT Services Présence (icône dans la barre des tâches)
+  avant de poursuivre. L'installateur arrête aussi le worker
+  pointeuse ZKTeco pour éviter l'erreur « Accès refusé » sur
+  les fichiers DLL (ex. System.Text.Json.dll).
 
 Cliquez sur « Suivant » pour continuer.

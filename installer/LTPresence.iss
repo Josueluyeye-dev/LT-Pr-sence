@@ -64,12 +64,15 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 
-CloseApplications=yes
+; Force la fermeture de l'app + worker (sinon DLL verrouillees en Program Files → DeleteFile code 5)
+CloseApplications=force
+CloseApplicationsFilter=*.exe
 RestartApplications=no
 AllowNetworkDrive=no
 SetupLogging=yes
 ShowLanguageDialog=no
 SetupMutex=LTPresence_Setup_Mutex,{#MyAppName}
+AppMutex=LT.Services.Presence.Mutex
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
@@ -82,7 +85,8 @@ Name: "desktopicon"; Description: "Creer un raccourci sur le Bureau"; GroupDescr
 Name: "autostart"; Description: "Lancer LT Services Presence apres l'installation"; GroupDescription: "Apres l'installation :"; Flags: checkedonce
 
 [Files]
-Source: "..\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; restartreplace : si un fichier reste verrouille, remplacement au prochain redemarrage
+Source: "..\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "assets\lt_services.ico"; DestDir: "{app}\Assets"; Flags: ignoreversion
 Source: "assets\impact_entreprises_logo.png"; DestDir: "{app}\Assets"; Flags: ignoreversion
 
@@ -168,6 +172,29 @@ begin
     Exit;
   end;
 
+  Result := True;
+end;
+
+procedure ArreterProcessusApp;
+var
+  ResultCode: Integer;
+begin
+  { Ferme l'UI et le worker ZKTeco qui verrouille System.Text.Json.dll etc. }
+  Exec('taskkill.exe', '/F /IM MelodyPresence.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM ZktecoPullWorker.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(800);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  NeedsRestart := False;
+  Result := '';
+  ArreterProcessusApp;
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  ArreterProcessusApp;
   Result := True;
 end;
 
