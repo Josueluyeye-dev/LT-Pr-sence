@@ -1,8 +1,8 @@
 ﻿{
     "sha256":  "",
-    "version":  "1.0.1",
-    "releaseNotes":  "Correction: liste employes vide sur machine neuve — prechargement automatique des 53 employes LT (+ salaires) a la premiere installation. Bouton Charger liste LT disponible.",
-    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.1/LT_Presence_Setup_1.0.1.exe",
+    "version":  "1.0.2",
+    "releaseNotes":  "Liste employes LT complete (53) avec matricules et PIN pointeuse. Prechargement auto a la premiere installation. Bouton Charger liste LT.",
+    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.2/LT_Presence_Setup_1.0.2.exe",
     "publishedAt":  "2026-10-07",
-    "fileName":  "LT_Presence_Setup_1.0.1.exe"
+    "fileName":  "LT_Presence_Setup_1.0.2.exe"
 }
