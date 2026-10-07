@@ -1,8 +1,8 @@
-{
-    "sha256":  "ec5685e4d9953d6cbcb3e4779fd091392c8937a0c5d878b37602d5c94d70d5b8",
+﻿{
+    "sha256":  "",
     "version":  "1.0.0",
-    "releaseNotes":  "Livraison professionnelle LT Services - concue par IMPACT Entreprises (https://impact-entreprises.net/). Installateur Inno Setup self-contained, branding Impact + LT Services.",
-    "downloadUrl":  "",
+    "releaseNotes":  "Premiere livraison LT Services — logiciel concu par IMPACT Entreprises. Presence, pointeuses ZKTeco, bulletins de paie periode 24-24.",
+    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.0/LT_Presence_Setup_1.0.0.exe",
     "publishedAt":  "2026-10-07",
     "fileName":  "LT_Presence_Setup_1.0.0.exe"
 }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -10,9 +10,9 @@
     <RootNamespace>MelodyPresence</RootNamespace>
     <AssemblyName>MelodyPresence</AssemblyName>
     <Company>LT Services</Company>
-    <Product>LT Services Présence</Product>
-    <AssemblyTitle>LT Services Présence</AssemblyTitle>
-    <Description>Gestion de présence — vous êtes dans de bonnes mains</Description>
+    <Product>LT Services PrÃ©sence</Product>
+    <AssemblyTitle>LT Services PrÃ©sence</AssemblyTitle>
+    <Description>Gestion de prÃ©sence â€” vous Ãªtes dans de bonnes mains</Description>
     <Version>1.0.0</Version>
     <ApplicationIcon>Assets\lt_services.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -32,7 +32,7 @@
     <Content Include="Assets\toast_logo_circle.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Évite les collisions WPF / WinForms (NotifyIcon seulement). -->
+  <!-- Ã‰vite les collisions WPF / WinForms (NotifyIcon seulement). -->
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
@@ -79,3 +79,4 @@
   </Target>
 
 </Project>
+
