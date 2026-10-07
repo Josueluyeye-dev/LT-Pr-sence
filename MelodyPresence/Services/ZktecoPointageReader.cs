@@ -85,6 +85,76 @@ public static class ZktecoPointageReader
         return list;
     }
 
+    public sealed class ZkUserDto
+    {
+        public string Id { get; set; } = "";
+        public string Nom { get; set; } = "";
+        public int Privilege { get; set; }
+        public bool Actif { get; set; }
+
+        public string Affichage => string.IsNullOrWhiteSpace(Nom) ? Id : $"{Id} | {Nom}";
+    }
+
+    /// <summary>Liste des utilisateurs enrôlés sur le terminal (ID = CodePin / enroll number).</summary>
+    public static IReadOnlyList<ZkUserDto> LireUtilisateurs(string ip, int port, int machineId, int commPassword = 0)
+    {
+        var exePath = ResoudreCheminExeWorker()
+            ?? throw new FileNotFoundException(
+                "ZktecoPullWorker.exe introuvable. Recompilez la solution LT Services Présence.");
+
+        VerifierPortTcp(ip.Trim(), port);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = exePath,
+            WorkingDirectory = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
+        };
+        psi.ArgumentList.Add("--users");
+        psi.ArgumentList.Add(ip.Trim());
+        psi.ArgumentList.Add(port.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(machineId.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(commPassword.ToString(CultureInfo.InvariantCulture));
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        if (!process.WaitForExit(TimeoutMs))
+        {
+            try { process.Kill(true); } catch { /* ignore */ }
+            throw new TimeoutException("Lecture des utilisateurs ZKTeco trop longue.");
+        }
+
+        if (process.ExitCode != 0)
+        {
+            var msg = string.IsNullOrWhiteSpace(stderr) ? "Échec lecture utilisateurs terminal." : stderr.Trim();
+            throw new InvalidOperationException(msg);
+        }
+
+        stdout = stdout.Trim();
+        if (string.IsNullOrEmpty(stdout) || stdout == "[]")
+            return Array.Empty<ZkUserDto>();
+
+        var rows = JsonSerializer.Deserialize<List<ZkUserPullDto>>(stdout,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<ZkUserPullDto>();
+        return rows
+            .Where(x => !string.IsNullOrWhiteSpace(x.id))
+            .Select(x => new ZkUserDto
+            {
+                Id = x.id!.Trim(),
+                Nom = x.n?.Trim() ?? "",
+                Privilege = x.p,
+                Actif = x.e
+            })
+            .ToList();
+    }
+
     private static string? ResoudreCheminExeWorker()
     {
         var nested = Path.Combine(AppContext.BaseDirectory, DossierWorkerRelatif, "ZktecoPullWorker.exe");
@@ -117,5 +187,13 @@ public static class ZktecoPointageReader
     {
         public string? p { get; set; }
         public string? t { get; set; }
+    }
+
+    private sealed class ZkUserPullDto
+    {
+        public string? id { get; set; }
+        public string? n { get; set; }
+        public int p { get; set; }
+        public bool e { get; set; }
     }
 }

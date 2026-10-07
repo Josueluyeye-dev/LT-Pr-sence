@@ -1,17 +1,17 @@
-﻿; =============================================================================
-; Installateur LT Services Presence â€” Inno Setup 6
-; Concu par IMPACT Entreprises â€” https://impact-entreprises.net/
+; =============================================================================
+; Installateur LT Services Presence — Inno Setup 6
+; Concu par IMPACT Entreprises — https://impact-entreprises.net/
 ; Compiler : ISCC.exe LTPresence.iss  (ou CreerInstallateur.ps1)
 ; =============================================================================
 
 #define MyAppName "LT Services Presence"
-#define MyAppVersion "1.0.2"
-#define MyAppVersionShort "1.0.2"
+#define MyAppVersion "1.0.0"
+#define MyAppVersionShort "1.0.0"
 #define MyAppPublisher "IMPACT Entreprises"
 #define MyAppClient "LT Services"
 #define MyAppExeName "MelodyPresence.exe"
 #define MyAppCopyright "IMPACT Entreprises"
-#define MyAppDescription "Gestion de presence et bulletins de paie â€” LT Services"
+#define MyAppDescription "Gestion de presence et bulletins de paie — LT Services"
 #define MyAppURL "https://impact-entreprises.net/"
 
 ; Mot de passe technique d'installation (reserve au fournisseur IMPACT Entreprises)
@@ -170,6 +170,3 @@ begin
 
   Result := True;
 end;
-
-
-

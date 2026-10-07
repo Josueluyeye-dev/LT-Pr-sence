@@ -118,33 +118,23 @@ public class PointageService
         db.SaveChanges();
     }
 
+    /// <summary>
+    /// Fusion des logs terminal — même logique que Melody Paie :
+    /// priorité ID terminal (<see cref="Employe.CodePinZk"/>), puis matricule (clés + chiffres sans zéros).
+    /// </summary>
     public int FusionnerDepuisTerminal(IReadOnlyList<(string CodePin, DateTime Horodatage)> logs)
     {
         if (logs.Count == 0) return 0;
 
         using var db = new PresenceDbContext();
-        var employes = db.Employes.AsNoTracking().Where(e => e.Actif && e.CodePinZk != null && e.CodePinZk != "").ToList();
-        var pinMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var e in employes)
-        {
-            var pin = (e.CodePinZk ?? "").Trim();
-            if (pin.Length == 0) continue;
-            pinMap[pin] = e.Id;
-            var digits = new string(pin.Where(char.IsDigit).ToArray());
-            if (digits.Length > 0)
-                pinMap[digits] = e.Id;
-        }
+        var employes = db.Employes.AsNoTracking().Where(e => e.Actif).ToList();
+        var pinMap = ConstruireMapEmployes(employes);
 
         var ajoutes = 0;
         foreach (var (codePin, horodatage) in logs)
         {
-            var cle = codePin.Trim();
-            if (!pinMap.TryGetValue(cle, out var employeId))
-            {
-                var digits = new string(cle.Where(char.IsDigit).ToArray());
-                if (digits.Length == 0 || !pinMap.TryGetValue(digits, out employeId))
-                    continue;
-            }
+            if (!ResoudreEmployeId(pinMap, codePin, out var employeId))
+                continue;
 
             var local = horodatage.Kind == DateTimeKind.Utc
                 ? horodatage.ToLocalTime()
@@ -172,6 +162,57 @@ public class PointageService
         if (ajoutes > 0)
             db.SaveChanges();
         return ajoutes;
+    }
+
+    public static Dictionary<string, int> ConstruireMapEmployes(IEnumerable<Employe> employes)
+    {
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in employes)
+        {
+            AjouterCles(map, e.CodePinZk, e.Id);
+            AjouterCles(map, e.Matricule, e.Id);
+        }
+
+        return map;
+    }
+
+    public static bool ResoudreEmployeId(Dictionary<string, int> map, string codePin, out int employeId)
+    {
+        employeId = 0;
+        var cle = NormaliserCle(codePin);
+        if (!string.IsNullOrWhiteSpace(cle) && map.TryGetValue(cle, out employeId))
+            return true;
+
+        var digits = NormaliserChiffres(codePin);
+        if (!string.IsNullOrWhiteSpace(digits) && map.TryGetValue(digits, out employeId))
+            return true;
+
+        return false;
+    }
+
+    private static void AjouterCles(Dictionary<string, int> map, string? valeur, int employeId)
+    {
+        var brut = (valeur ?? "").Trim();
+        if (brut.Length == 0) return;
+
+        var cle = NormaliserCle(brut);
+        if (!string.IsNullOrWhiteSpace(cle) && !map.ContainsKey(cle))
+            map.Add(cle, employeId);
+
+        var digits = NormaliserChiffres(brut);
+        if (!string.IsNullOrWhiteSpace(digits) && !map.ContainsKey(digits))
+            map.Add(digits, employeId);
+    }
+
+    private static string NormaliserCle(string valeur)
+        => (valeur ?? "").Trim().Replace(" ", "").ToUpperInvariant();
+
+    private static string NormaliserChiffres(string valeur)
+    {
+        var digits = new string((valeur ?? "").Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(digits)) return "";
+        var sansZeros = digits.TrimStart('0');
+        return string.IsNullOrEmpty(sansZeros) ? "0" : sansZeros;
     }
 
     private static PointageType DeterminerType(PresenceDbContext db, int employeId, DateTime local)

@@ -40,7 +40,8 @@ public class MainViewModel : ObservableObject
     private string _zkPort = "4370";
     private string _zkMachine = "1";
     private string _zkCommPwd = "000000";
-    private bool _zkSyncActif;
+    private bool _zkSyncActif = true;
+    private ZktecoPointageReader.ZkUserDto? _idTerminalSelectionne;
     private string _zkIntervalle = "60";
     private string _zkDerniereSync = "Jamais";
     private bool _notificationsWindowsActives = true;
@@ -131,6 +132,10 @@ public class MainViewModel : ObservableObject
         ImporterFicheSalaireCommand = new RelayCommand(_ => ImporterFicheSalaire());
         ImporterEmployesCsvCommand = new RelayCommand(_ => ImporterEmployesCsv());
         RechargerEmployesSeedCommand = new RelayCommand(_ => RechargerEmployesSeed());
+        ChargerIdsTerminalCommand = new RelayCommand(_ => ChargerIdsTerminal());
+        AttribuerIdTerminalCommand = new RelayCommand(_ => AttribuerIdTerminalSelectionne(),
+            _ => EmployeEdition != null && IdTerminalSelectionne != null);
+        AssocierIdsTerminalAutoCommand = new RelayCommand(_ => AssocierIdsTerminalAuto());
         DeconnecterCommand = new RelayCommand(_ => Deconnecter());
         RecalculerTauxBaseCommand = new RelayCommand(_ => RecalculerTauxBaseEmploye(), _ => EmployeEdition != null);
 
@@ -786,8 +791,23 @@ public class MainViewModel : ObservableObject
     public ICommand ImporterFicheSalaireCommand { get; }
     public ICommand ImporterEmployesCsvCommand { get; }
     public ICommand RechargerEmployesSeedCommand { get; }
+    public ICommand ChargerIdsTerminalCommand { get; }
+    public ICommand AttribuerIdTerminalCommand { get; }
+    public ICommand AssocierIdsTerminalAutoCommand { get; }
     public ICommand DeconnecterCommand { get; }
     public ICommand RecalculerTauxBaseCommand { get; }
+
+    public ObservableCollection<ZktecoPointageReader.ZkUserDto> IdsTerminalDetectes { get; } = new();
+
+    public ZktecoPointageReader.ZkUserDto? IdTerminalSelectionne
+    {
+        get => _idTerminalSelectionne;
+        set
+        {
+            if (SetProperty(ref _idTerminalSelectionne, value))
+                (AttribuerIdTerminalCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+    }
 
     public ObservableCollection<BulletinPaie> BulletinsMois { get; } = new();
 
@@ -1251,6 +1271,225 @@ public class MainViewModel : ObservableObject
         {
             MessageBox.Show(ex.Message, "Import employés", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private void ChargerIdsTerminal()
+    {
+        try
+        {
+            using var db = new PresenceDbContext();
+            var p = db.Parametres.AsNoTracking().FirstOrDefault(x => x.Id == ParametresApplication.SingletonId);
+            if (p == null || string.IsNullOrWhiteSpace(p.ZkTerminalIp))
+            {
+                MessageBox.Show(
+                    "Configurez d’abord l’IP du terminal dans Paramètres.",
+                    "ID terminal",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            StatutBarre = "Lecture des IDs terminal…";
+            var port = p.ZkTerminalPort > 0 ? p.ZkTerminalPort : 4370;
+            var machine = p.ZkMachineNumber > 0 ? p.ZkMachineNumber : 1;
+            var users = ZktecoPointageReader.LireUtilisateurs(p.ZkTerminalIp.Trim(), port, machine, p.ZkCommPassword);
+
+            IdsTerminalDetectes.Clear();
+            foreach (var u in users.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+                IdsTerminalDetectes.Add(u);
+
+            StatutBarre = $"{IdsTerminalDetectes.Count} ID(s) utilisateur lus depuis le terminal";
+            MessageBox.Show(
+                $"{IdsTerminalDetectes.Count} utilisateur(s) lus sur le terminal.\n\nSélectionnez un ID puis « Attribuer à cet employé »,\nou utilisez « Associer auto (par nom) ».",
+                "ID terminal ZKTeco",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            StatutBarre = "Lecture IDs terminal échouée";
+            MessageBox.Show(ex.Message, "ID terminal", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void AttribuerIdTerminalSelectionne()
+    {
+        if (EmployeEdition == null || IdTerminalSelectionne == null ||
+            string.IsNullOrWhiteSpace(IdTerminalSelectionne.Id))
+        {
+            MessageBox.Show("Sélectionnez un employé en édition et un ID terminal.", "ID terminal");
+            return;
+        }
+
+        var id = IdTerminalSelectionne.Id.Trim();
+        using var db = new PresenceDbContext();
+        var autre = db.Employes.FirstOrDefault(e =>
+            e.Id != EmployeEdition.Id &&
+            e.CodePinZk != null &&
+            e.CodePinZk == id);
+        if (autre != null)
+        {
+            var conf = MessageBox.Show(
+                $"L’ID {id} est déjà lié à {autre.NomComplet} ({autre.Matricule}).\n\nÉchanger les IDs entre les deux employés ?",
+                "ID terminal déjà utilisé",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (conf != MessageBoxResult.Yes)
+                return;
+
+            var ancien = EmployeEdition.CodePinZk;
+            autre.CodePinZk = string.IsNullOrWhiteSpace(ancien) ? null : ancien.Trim();
+            db.SaveChanges();
+        }
+
+        var maj = ClonerEmploye(EmployeEdition);
+        maj.CodePinZk = id;
+        EmployeEdition = maj;
+        StatutBarre = $"ID terminal {id} attribué — enregistrez la fiche";
+    }
+
+    private void AssocierIdsTerminalAuto()
+    {
+        try
+        {
+            using var db = new PresenceDbContext();
+            var p = db.Parametres.AsNoTracking().FirstOrDefault(x => x.Id == ParametresApplication.SingletonId);
+            if (p == null || string.IsNullOrWhiteSpace(p.ZkTerminalIp))
+            {
+                MessageBox.Show("Configurez d’abord l’IP du terminal dans Paramètres.", "Association auto");
+                return;
+            }
+
+            var port = p.ZkTerminalPort > 0 ? p.ZkTerminalPort : 4370;
+            var machine = p.ZkMachineNumber > 0 ? p.ZkMachineNumber : 1;
+            var users = ZktecoPointageReader.LireUtilisateurs(p.ZkTerminalIp.Trim(), port, machine, p.ZkCommPassword);
+            if (users.Count == 0)
+            {
+                MessageBox.Show("Aucun utilisateur sur le terminal.", "Association auto");
+                return;
+            }
+
+            IdsTerminalDetectes.Clear();
+            foreach (var u in users.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
+                IdsTerminalDetectes.Add(u);
+
+            var employes = db.Employes.Where(e => e.Actif).ToList();
+            var idsPris = new HashSet<string>(
+                employes.Where(e => !string.IsNullOrWhiteSpace(e.CodePinZk)).Select(e => e.CodePinZk!.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
+            var associes = 0;
+            var dejaOk = 0;
+            foreach (var emp in employes)
+            {
+                // Déjà lié à un ID présent sur le terminal
+                if (!string.IsNullOrWhiteSpace(emp.CodePinZk) &&
+                    users.Any(u => string.Equals(u.Id.Trim(), emp.CodePinZk.Trim(), StringComparison.OrdinalIgnoreCase)))
+                {
+                    dejaOk++;
+                    continue;
+                }
+
+                // Correspondance exacte matricule ↔ ID terminal
+                var parMat = users.FirstOrDefault(u =>
+                    string.Equals(u.Id.Trim(), emp.Matricule.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    DigitsEgaux(u.Id, emp.Matricule));
+                if (parMat != null && !idsPris.Contains(parMat.Id.Trim()))
+                {
+                    emp.CodePinZk = parMat.Id.Trim();
+                    idsPris.Add(emp.CodePinZk);
+                    associes++;
+                    continue;
+                }
+
+                // Correspondance par nom (tokens) — même approche que Melody Paie
+                var best = MeilleurUserParNom(emp, users.Where(u => !idsPris.Contains(u.Id.Trim())));
+                if (best == null) continue;
+                emp.CodePinZk = best.Id.Trim();
+                idsPris.Add(emp.CodePinZk);
+                associes++;
+            }
+
+            db.SaveChanges();
+            ChargerEmployes();
+            if (EmployeEdition != null)
+            {
+                var maj = employes.FirstOrDefault(e => e.Id == EmployeEdition.Id);
+                if (maj != null)
+                    EmployeEdition = ClonerEmploye(maj);
+            }
+
+            StatutBarre = $"Association auto : {associes} liés, {dejaOk} déjà OK";
+            MessageBox.Show(
+                $"Association terminée (comme Melody Paie).\n\nNouveaux liens ID terminal : {associes}\nDéjà correctement liés : {dejaOk}\nUtilisateurs terminal : {users.Count}",
+                "Association auto",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Association auto", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private static bool DigitsEgaux(string a, string b)
+    {
+        static string D(string s)
+        {
+            var d = new string(s.Where(char.IsDigit).ToArray()).TrimStart('0');
+            return string.IsNullOrEmpty(d) ? "0" : d;
+        }
+        var da = D(a);
+        var db = D(b);
+        return da.Length > 0 && db.Length > 0 && da == db && da != "0";
+    }
+
+    private static ZktecoPointageReader.ZkUserDto? MeilleurUserParNom(Employe emp, IEnumerable<ZktecoPointageReader.ZkUserDto> users)
+    {
+        var xt = TokensNom($"{emp.Nom} {emp.Prenom}");
+        if (xt.Count == 0) return null;
+        ZktecoPointageReader.ZkUserDto? best = null;
+        var bestScore = 0.0;
+        foreach (var u in users)
+        {
+            if (string.IsNullOrWhiteSpace(u.Nom)) continue;
+            var dt = TokensNom(u.Nom);
+            if (dt.Count == 0) continue;
+            var inter = xt.Intersect(dt, StringComparer.Ordinal).Count();
+            if (inter == 0) continue;
+            var union = xt.Union(dt, StringComparer.Ordinal).Count();
+            var score = inter / (double)Math.Max(1, union);
+            if (xt.IsSubsetOf(dt) || dt.IsSubsetOf(xt))
+                score = Math.Max(score, 0.85);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = u;
+            }
+        }
+
+        return bestScore >= 0.55 ? best : null;
+    }
+
+    private static HashSet<string> TokensNom(string s)
+    {
+        var formD = s.Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder(formD.Length);
+        foreach (var ch in formD)
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) ==
+                System.Globalization.UnicodeCategory.NonSpacingMark)
+                continue;
+            if (char.IsLetterOrDigit(ch))
+                sb.Append(char.ToUpperInvariant(ch));
+            else
+                sb.Append(' ');
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(t => t.Length > 1)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     private void RechargerEmployesSeed()

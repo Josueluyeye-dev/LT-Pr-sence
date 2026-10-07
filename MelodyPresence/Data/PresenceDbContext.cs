@@ -224,6 +224,15 @@ public class PresenceDbContext : DbContext
             changed = true;
         }
 
+        // Comme Melody Paie : sync auto dès qu'une IP terminal est connue
+        if (!p.ZkSyncActif && !string.IsNullOrWhiteSpace(p.ZkTerminalIp))
+        {
+            p.ZkSyncActif = true;
+            if (p.ZkIntervalleSecondes <= 0)
+                p.ZkIntervalleSecondes = 60;
+            changed = true;
+        }
+
         if (changed)
             db.SaveChanges();
     }

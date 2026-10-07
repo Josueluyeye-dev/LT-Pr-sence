@@ -34,6 +34,7 @@ public partial class App : System.Windows.Application
 
         PresenceDbContext.Initialiser();
         SynchroniserDemarrageWindows();
+        try { ZktecoSynchronisationService.Reconfigurer(); } catch { /* sync non bloquante */ }
 
         var autostart = e.Args.Any(a =>
             string.Equals(a, "--autostart", StringComparison.OrdinalIgnoreCase));

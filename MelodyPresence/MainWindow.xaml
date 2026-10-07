@@ -1293,7 +1293,7 @@
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
                                     <DataGridTextColumn Header="Prénom" Binding="{Binding Prenom}" Width="130"
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
-                                    <DataGridTextColumn Header="PIN" Binding="{Binding CodePinZk}" Width="90"
+                                    <DataGridTextColumn Header="ID terminal" Binding="{Binding CodePinZk}" Width="100"
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
                                     <DataGridTextColumn Header="Salaire" Binding="{Binding SalaireMensuel, StringFormat=N2}" Width="110"
                                                         ElementStyle="{StaticResource DataGridCellText}"/>
@@ -1334,9 +1334,34 @@
                                     <TextBox Text="{Binding EmployeEdition.Prenom, UpdateSourceTrigger=PropertyChanged}"
                                              Margin="0,0,0,10"/>
 
-                                    <TextBlock Style="{StaticResource FieldLabel}" Text="PIN pointeuse"/>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="ID utilisateur terminal (ZKTeco)"/>
                                     <TextBox Text="{Binding EmployeEdition.CodePinZk, UpdateSourceTrigger=PropertyChanged}"
-                                             Margin="0,0,0,10"/>
+                                             Margin="0,0,0,6"/>
+                                    <TextBlock Text="Lien employé ↔ enrôlement pointeuse (comme Melody Paie)."
+                                               FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Button Content="Lire IDs terminal"
+                                                Command="{Binding ChargerIdsTerminalCommand}"
+                                                Style="{StaticResource GhostButton}"
+                                                Padding="10,6" Margin="0,0,6,6"/>
+                                        <Button Content="Attribuer ID sélectionné"
+                                                Command="{Binding AttribuerIdTerminalCommand}"
+                                                Style="{StaticResource GhostButton}"
+                                                Padding="10,6" Margin="0,0,6,6"/>
+                                        <Button Content="Associer auto"
+                                                Command="{Binding AssocierIdsTerminalAutoCommand}"
+                                                Style="{StaticResource GhostButton}"
+                                                Padding="10,6" Margin="0,0,0,6"
+                                                ToolTip="Lie automatiquement ID terminal ↔ employé (matricule ou nom)"/>
+                                    </WrapPanel>
+                                    <Border BorderBrush="#CFD8DC" BorderThickness="1" CornerRadius="8"
+                                            Padding="4" Margin="0,0,0,12" Background="#FAFCFE"
+                                            MaxHeight="120">
+                                        <ListBox ItemsSource="{Binding IdsTerminalDetectes}"
+                                                 SelectedItem="{Binding IdTerminalSelectionne, Mode=TwoWay}"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 DisplayMemberPath="Affichage"/>
+                                    </Border>
 
                                     <CheckBox Content="Actif" IsChecked="{Binding EmployeEdition.Actif}" Margin="0,0,0,14"/>
 

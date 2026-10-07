@@ -10,7 +10,8 @@ public class ParametresApplication
     public int ZkTerminalPort { get; set; } = 4370;
     public int ZkMachineNumber { get; set; } = 1;
     public int ZkCommPassword { get; set; }
-    public bool ZkSyncActif { get; set; }
+    /// <summary>Sync auto du terminal (comme Melody Paie) — active dès qu'une IP est configurée.</summary>
+    public bool ZkSyncActif { get; set; } = true;
     public int ZkIntervalleSecondes { get; set; } = 60;
     public DateTime? ZkDerniereSyncUtc { get; set; }
 
