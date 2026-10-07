@@ -1,8 +1,8 @@
 {
-  "publishedAt": "2026-10-07",
-  "version": "1.0.3",
-  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.3/LT_Presence_Setup_1.0.3.exe",
-  "releaseNotes": "Release v1.0.3",
-  "sha256": "25506A4F51872215C987613EBBB88B399A106905CE9B4E25617B19EED79CBFA3",
-  "fileName": "LT_Presence_Setup_1.0.3.exe"
+  "version": "1.0.4",
+  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.4/LT_Presence_Setup_1.0.4.exe",
+  "fileName": "LT_Presence_Setup_1.0.4.exe",
+  "sha256": "",
+  "releaseNotes": "Correction installateur: arrete MelodyPresence et ZktecoPullWorker avant remplacement des DLL (erreur Acces refuse code 5).",
+  "publishedAt": "2026-10-07"
 }

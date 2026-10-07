@@ -13,7 +13,7 @@
     <Product>LT Services PrÃƒÂ©sence</Product>
     <AssemblyTitle>LT Services PrÃƒÂ©sence</AssemblyTitle>
     <Description>Gestion de prÃƒÂ©sence Ã¢â‚¬â€ vous ÃƒÂªtes dans de bonnes mains</Description>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <ApplicationIcon>Assets\lt_services.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -85,5 +85,6 @@
   </Target>
 
 </Project>
+
 
 
