@@ -1,8 +1,8 @@
-﻿{
-    "sha256":  "",
-    "version":  "1.0.2",
-    "releaseNotes":  "Liste employes LT complete (53) avec matricules et PIN pointeuse. Prechargement auto a la premiere installation. Bouton Charger liste LT.",
-    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.2/LT_Presence_Setup_1.0.2.exe",
-    "publishedAt":  "2026-10-07",
-    "fileName":  "LT_Presence_Setup_1.0.2.exe"
+{
+  "publishedAt": "2026-10-07",
+  "sha256": "4B17544328CE5681D5873EF149EB08C01F46EB2EE91C48058F3D8E5C5D778407",
+  "releaseNotes": "Release v1.0.2",
+  "fileName": "LT_Presence_Setup_1.0.2.exe",
+  "version": "1.0.2",
+  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.2/LT_Presence_Setup_1.0.2.exe"
 }
