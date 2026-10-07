@@ -1,8 +1,8 @@
-﻿{
-    "sha256":  "",
-    "version":  "1.0.0",
-    "releaseNotes":  "Premiere livraison LT Services — logiciel concu par IMPACT Entreprises. Presence, pointeuses ZKTeco, bulletins de paie periode 24-24.",
-    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.0/LT_Presence_Setup_1.0.0.exe",
-    "publishedAt":  "2026-10-07",
-    "fileName":  "LT_Presence_Setup_1.0.0.exe"
+{
+  "releaseNotes": "Release v1.0.0",
+  "sha256": "13C194ECD1D041727E220253B3A6CB8F0BF260809A4EE367630BB6C17EE87E65",
+  "fileName": "LT_Presence_Setup_1.0.0.exe",
+  "version": "1.0.0",
+  "publishedAt": "2026-10-07",
+  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.0/LT_Presence_Setup_1.0.0.exe"
 }
