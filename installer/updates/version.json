@@ -1,8 +1,8 @@
 {
-  "version": "1.0.6",
-  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.6/LT_Presence_Setup_1.0.6.exe",
+  "publishedAt": "2026-10-12",
+  "releaseNotes": "Release v1.0.6",
   "fileName": "LT_Presence_Setup_1.0.6.exe",
-  "sha256": "",
-  "releaseNotes": "Samedi chome paye, bulletins periodes passees, suppression bulletins, sync pointeuse plus fiable, protection des salaires clients a la mise a jour.",
-  "publishedAt": "2026-10-12"
+  "sha256": "40ACF74D5CC26C367A1F8EE2D3DD7B44836705AA819923352AEEA9B17E1EF624",
+  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.6/LT_Presence_Setup_1.0.6.exe",
+  "version": "1.0.6"
 }
