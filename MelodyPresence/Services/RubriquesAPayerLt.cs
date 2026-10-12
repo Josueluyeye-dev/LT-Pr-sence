@@ -93,11 +93,20 @@ public static class RubriquesAPayerLt
             : (tauxBase > 0 ? decimal.Round(tauxBase / 8m, 2, MidpointRounding.AwayFromZero) : 0m);
         var tauxConge = emp.TauxCongeCirconstance > 0 ? emp.TauxCongeCirconstance : tauxBase;
 
-        // KM : taux par défaut uniquement en mémoire si des km sont saisis
-        var kmEffectif = km ?? emp.KmMensuel;
+        // KM : km saisis sinon Temps = jours de période (comme logement / ancienneté)
+        var kmSaisis = km ?? emp.KmMensuel;
         var tauxKm = emp.TauxIndemniteKm;
-        if (kmEffectif > 0 && tauxKm <= 0)
-            tauxKm = 1.25m;
+        decimal tempsKm;
+        if (kmSaisis > 0)
+        {
+            tempsKm = kmSaisis;
+            if (tauxKm <= 0)
+                tauxKm = 1.25m;
+        }
+        else if (tauxKm > 0)
+            tempsKm = Math.Max(joursFixes, 1);
+        else
+            tempsKm = 0m;
 
         var joursMaladie = emp.JoursMaladieMois;
         var heuresSup = emp.HeuresSupMois;
@@ -106,7 +115,8 @@ public static class RubriquesAPayerLt
 
         // Rubriques journalières / forfait : Temps = joursFixes dès qu’un taux est renseigné
         var tempsAnciennete = emp.TauxAnciennete > 0 ? Math.Max(joursFixes, 1) : 0m;
-        var tempsPrime = emp.TauxPrimeAssiduite > 0 ? Math.Max(joursFixes, 1) : 0m;
+        // Prime d’assiduité : forfait Temps = 1
+        var tempsPrime = emp.TauxPrimeAssiduite > 0 ? 1m : 0m;
         var tempsComplement = emp.TauxComplementTransport > 0 ? Math.Max(joursFixes, 1) : 0m;
         var tempsLogement = emp.TauxLogement > 0 ? Math.Max(joursFixes, 1) : 0m;
         var tempsAlloc = emp.TauxAllocFamiliales > 0 ? Math.Max(joursFixes, 1) : 0m;
@@ -129,7 +139,7 @@ public static class RubriquesAPayerLt
             Ligne(HeureSup, heuresSup, tauxHeureSup),
             Ligne(JourFeriePreste, joursFeries, tauxFerie),
             Ligne(PrimeAssiduite, tempsPrime, emp.TauxPrimeAssiduite),
-            Ligne(IndemniteKm, kmEffectif, tauxKm),
+            Ligne(IndemniteKm, tempsKm, tauxKm),
             Ligne(CongeCirconstance, joursConge, tauxConge),
             Ligne(ComplementTransport, tempsComplement, emp.TauxComplementTransport),
             Ligne(IndemniteLogement, tempsLogement, emp.TauxLogement),

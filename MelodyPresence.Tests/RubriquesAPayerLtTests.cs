@@ -41,6 +41,28 @@ public class RubriquesAPayerLtTests
         RubriquesAPayerLt.CompleterTauxSiBesoin(emp);
         Assert.Equal(28370m, Math.Round(emp.TauxSalaireBase, 0)); // 737620/26
     }
+
+    [Fact]
+    public void Indemnite_KM_utilise_jours_si_taux_sans_km()
+    {
+        var emp = new Employe { TauxSalaireBase = 10m, TauxIndemniteKm = 1.25m };
+        var lignes = RubriquesAPayerLt.Construire(emp, joursPointes: 20, periodeClose: true);
+        var km = lignes.First(l => l.Libelle == RubriquesAPayerLt.IndemniteKm);
+        Assert.Equal(26m, km.Temps);
+        Assert.Equal(1.25m, km.Taux);
+        Assert.Equal(32.50m, km.Montant);
+    }
+
+    [Fact]
+    public void Prime_assiduite_temps_egal_1()
+    {
+        var emp = new Employe { TauxSalaireBase = 10m, TauxPrimeAssiduite = 50m };
+        var lignes = RubriquesAPayerLt.Construire(emp, joursPointes: 20, periodeClose: true);
+        var prime = lignes.First(l => l.Libelle == RubriquesAPayerLt.PrimeAssiduite);
+        Assert.Equal(1m, prime.Temps);
+        Assert.Equal(50m, prime.Taux);
+        Assert.Equal(50m, prime.Montant);
+    }
 }
 
 public class PeriodePaieRealtimeTests
