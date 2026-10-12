@@ -5,8 +5,8 @@
 ; =============================================================================
 
 #define MyAppName "LT Services Presence"
-#define MyAppVersion "1.0.5"
-#define MyAppVersionShort "1.0.5"
+#define MyAppVersion "1.0.6"
+#define MyAppVersionShort "1.0.6"
 #define MyAppPublisher "IMPACT Entreprises"
 #define MyAppClient "LT Services"
 #define MyAppExeName "MelodyPresence.exe"
@@ -197,6 +197,7 @@ begin
   ArreterProcessusApp;
   Result := True;
 end;
+
 
 
 
