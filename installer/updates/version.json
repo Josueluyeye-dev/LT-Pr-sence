@@ -1,8 +1,8 @@
-﻿{
-    "sha256":  "",
-    "version":  "1.0.7",
-    "releaseNotes":  "Indemnite KM au temps de periode (comme les autres rubriques) ; prime d\u0027assiduite Temps = 1.",
-    "downloadUrl":  "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.7/LT_Presence_Setup_1.0.7.exe",
-    "publishedAt":  "2026-10-12",
-    "fileName":  "LT_Presence_Setup_1.0.7.exe"
+{
+  "sha256": "6DAA0547C6CC6ECDBA9E9A9A12768FBBA484977ED049D535C74F6EADA1868A67",
+  "downloadUrl": "https://github.com/Josueluyeye-dev/LT-Pr-sence/releases/download/v1.0.7/LT_Presence_Setup_1.0.7.exe",
+  "version": "1.0.7",
+  "releaseNotes": "Release v1.0.7",
+  "fileName": "LT_Presence_Setup_1.0.7.exe",
+  "publishedAt": "2026-10-12"
 }
