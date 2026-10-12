@@ -126,9 +126,14 @@ public class MainViewModel : ObservableObject
         ExporterHeuresVersPaieCommand = new RelayCommand(_ => ExporterHeuresVersPaie());
         ExporterPointagesVersPaieCommand = new RelayCommand(_ => ExporterPointagesVersPaie());
         RafraichirPaieCommand = new RelayCommand(_ => ChargerModulePaie());
+        PeriodePaiePrecedenteCommand = new RelayCommand(_ => AllerPeriodePaie(-1));
+        PeriodePaieSuivanteCommand = new RelayCommand(_ => AllerPeriodePaie(1));
+        PeriodePaieCouranteCommand = new RelayCommand(_ => AllerPeriodeCourante());
         GenererBulletinsCommand = new RelayCommand(async _ => await GenererBulletinsMoisAsync());
         ExporterBulletinPdfCommand = new RelayCommand(_ => ExporterBulletinSelectionPdf(), _ => BulletinSelectionne != null);
         ExporterTousBulletinsPdfCommand = new RelayCommand(_ => ExporterTousBulletinsPdf(), _ => BulletinsMois.Count > 0);
+        SupprimerBulletinCommand = new RelayCommand(_ => SupprimerBulletinSelection(), _ => BulletinSelectionne != null);
+        SupprimerTousBulletinsCommand = new RelayCommand(_ => SupprimerTousBulletinsMois(), _ => BulletinsMois.Count > 0);
         NouvelleRetenueCommand = new RelayCommand(_ => NouvelleRetenue());
         SauverRetenueCommand = new RelayCommand(_ => SauverRetenue(), _ => RetenueEdition != null && RetenueEmployeSelectionne != null);
         SupprimerRetenueCommand = new RelayCommand(_ => SupprimerRetenue(), _ => RetenueSelectionnee != null);
@@ -297,7 +302,8 @@ public class MainViewModel : ObservableObject
         get => _moisRapport;
         set
         {
-            if (SetProperty(ref _moisRapport, value))
+            var v = value is < 1 or > 12 ? Math.Clamp(value, 1, 12) : value;
+            if (SetProperty(ref _moisRapport, v))
             {
                 OnPropertyChanged(nameof(PaieResumeHeuresLibelle));
                 OnPropertyChanged(nameof(PeriodePaieLibelle));
@@ -310,7 +316,8 @@ public class MainViewModel : ObservableObject
         get => _anneeRapport;
         set
         {
-            if (SetProperty(ref _anneeRapport, value))
+            var v = value is < 2000 or > 2100 ? Math.Clamp(value, 2000, 2100) : value;
+            if (SetProperty(ref _anneeRapport, v))
             {
                 OnPropertyChanged(nameof(PaieResumeHeuresLibelle));
                 OnPropertyChanged(nameof(PeriodePaieLibelle));
@@ -467,13 +474,14 @@ public class MainViewModel : ObservableObject
     public bool PresenceJourVide => CompteurPresencePointee == 0;
 
     public string CompteurPresentsContexte =>
-        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurPresents, CompteurEmployesActifs)} %";
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurPresents, CompteurEmployesActifs)} % de l'effectif";
     public string CompteurRetardsContexte =>
-        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurRetards, CompteurEmployesActifs)} %";
-    public string CompteurEnCoursContexte => "Présents sur site";
-    public string CompteurEffectifContexte => "employés";
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurRetards, CompteurEmployesActifs)} % de l'effectif";
+    public string CompteurEnCoursContexte =>
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurEnCours, CompteurEmployesActifs)} % de l'effectif";
+    public string CompteurEffectifContexte => "employés actifs";
     public string CompteurAbsentsContexte =>
-        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurAbsentsOuNonPointes, CompteurEmployesActifs)} %";
+        CompteurEmployesActifs == 0 ? "—" : $"{Pourcent(CompteurAbsentsOuNonPointes, CompteurEmployesActifs)} % de l'effectif";
 
     /// <summary>4e KPI : Non pointés avant tolérance, Absents après.</summary>
     public int CompteurAbsentsOuNonPointes => AvantHeureLimite ? CompteurNonPointes : CompteurAbsents;
@@ -789,9 +797,14 @@ public class MainViewModel : ObservableObject
     public ICommand ExporterHeuresVersPaieCommand { get; }
     public ICommand ExporterPointagesVersPaieCommand { get; }
     public ICommand RafraichirPaieCommand { get; }
+    public ICommand PeriodePaiePrecedenteCommand { get; }
+    public ICommand PeriodePaieSuivanteCommand { get; }
+    public ICommand PeriodePaieCouranteCommand { get; }
     public ICommand GenererBulletinsCommand { get; }
     public ICommand ExporterBulletinPdfCommand { get; }
     public ICommand ExporterTousBulletinsPdfCommand { get; }
+    public ICommand SupprimerBulletinCommand { get; }
+    public ICommand SupprimerTousBulletinsCommand { get; }
     public ICommand NouvelleRetenueCommand { get; }
     public ICommand SauverRetenueCommand { get; }
     public ICommand SupprimerRetenueCommand { get; }
@@ -830,7 +843,10 @@ public class MainViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _bulletinSelectionne, value))
+            {
                 (ExporterBulletinPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (SupprimerBulletinCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
         }
     }
 
@@ -1033,8 +1049,8 @@ public class MainViewModel : ObservableObject
         var (hDebut, hLimite) = LireHoraires(db);
         _presenceJourBrute = PresenceCalculService.CalculerJourPourTous(employes, pts, DatePresence, hDebut, hLimite).ToList();
 
-        // Présents = ont pointé à l'heure (en cours ou journée terminée), hors retards.
-        CompteurPresents = _presenceJourBrute.Count(x => x.Statut is "Parti" or "Présent" or "En cours");
+        // Présents = ont pointé à l'heure (en cours ou journée terminée), hors retards + samedi chômé payé.
+        CompteurPresents = _presenceJourBrute.Count(x => x.Statut is "Parti" or "Présent" or "En cours" or "Chômé payé");
         CompteurEnCours = _presenceJourBrute.Count(x => x.Statut == "En cours");
         CompteurRetards = _presenceJourBrute.Count(x => x.EstEnRetard);
         CompteurAbsents = _presenceJourBrute.Count(x => x.Statut == "Absent");
@@ -1097,11 +1113,12 @@ public class MainViewModel : ObservableObject
 
         q = FiltrePresenceStatut switch
         {
-            "Présent" or "Parti" => q.Where(x => x.Statut is "Parti" or "Présent" or "En cours"),
+            "Présent" or "Parti" => q.Where(x => x.Statut is "Parti" or "Présent" or "En cours" or "Chômé payé"),
             "Retard" => q.Where(x => x.EstEnRetard),
             "En cours" => q.Where(x => x.Statut == "En cours"),
             "Absent" => q.Where(x => x.Statut == "Absent"),
             "Non pointé" => q.Where(x => x.Statut == "Non pointé"),
+            "Chômé payé" => q.Where(x => x.Statut == "Chômé payé"),
             _ => q
         };
 
@@ -1257,7 +1274,7 @@ public class MainViewModel : ObservableObject
         var resume = PresenceCalculService.ResumeMensuel(
             employes, pts, AnneeRapport, MoisRapport, hDebut, hLimite, DateTime.Today);
         ResumeMois.Clear();
-        foreach (var (emp, jours, heures, abs, retards) in resume)
+        foreach (var (emp, jours, _, heures, abs, retards) in resume)
         {
             ResumeMois.Add(new ResumeMoisItem
             {
@@ -1280,6 +1297,10 @@ public class MainViewModel : ObservableObject
         foreach (var b in CalculBulletinService.ListerMois(AnneeRapport, MoisRapport))
             BulletinsMois.Add(b);
         OnPropertyChanged(nameof(BulletinsResumeLibelle));
+        (ExporterTousBulletinsPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (SupprimerTousBulletinsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ExporterBulletinPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (SupprimerBulletinCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
         EmployesPaie.Clear();
         using (var db = new PresenceDbContext())
@@ -1400,14 +1421,28 @@ public class MainViewModel : ObservableObject
         if (dlg.ShowDialog() != true)
             return;
 
+        var conf = MessageBox.Show(
+            "Importer la fiche salaire ?\n\n" +
+            "Oui = remplacer les salaires / taux déjà saisis\n" +
+            "Non = compléter uniquement les fiches encore à 0\n" +
+            "Annuler = ne rien faire",
+            "Import salaires",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
+        if (conf == MessageBoxResult.Cancel)
+            return;
+
         try
         {
-            var r = FicheSalaireImportService.Importer(dlg.FileName);
+            var r = FicheSalaireImportService.Importer(
+                dlg.FileName,
+                ecraserSalairesExistants: conf == MessageBoxResult.Yes);
             ChargerEmployes();
             ChargerModulePaie();
-            StatutBarre = $"✓ Salaires importés : {r.MisAJour}/{r.LignesLues} (créés : {r.Crees})";
+            StatutBarre = $"✓ Salaires importés : {r.MisAJour}/{r.LignesLues} (créés : {r.Crees}, conservés : {r.Ignores})";
             MessageBox.Show(
-                $"Import terminé.\n\nLignes lues : {r.LignesLues}\nSalaires mis à jour : {r.MisAJour}\nEmployés créés : {r.Crees}",
+                $"Import terminé.\n\nLignes lues : {r.LignesLues}\nSalaires mis à jour : {r.MisAJour}\n" +
+                $"Employés créés : {r.Crees}\nConservés : {r.Ignores}",
                 "Fiche salaire",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1428,9 +1463,50 @@ public class MainViewModel : ObservableObject
         if (dlg.ShowDialog() != true)
             return;
 
+        using (var dbCheck = new PresenceDbContext())
+        {
+            var nb = dbCheck.Employes.Count();
+            if (nb > 0)
+            {
+                var conf = MessageBox.Show(
+                    $"La base contient déjà {nb} employé(s).\n\n" +
+                    "Oui = ajouter uniquement les matricules manquants (recommandé)\n" +
+                    "Non = aussi mettre à jour noms / PIN des existants\n" +
+                    "Annuler = ne rien faire",
+                    "Import employés",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+                if (conf == MessageBoxResult.Cancel)
+                    return;
+
+                try
+                {
+                    var r = EmployeCsvImportService.Importer(
+                        dlg.FileName,
+                        creerSeulementSiAbsent: conf == MessageBoxResult.Yes);
+                    ChargerEmployes();
+                    ChargerPresenceJour();
+                    ChargerAccueil();
+                    StatutBarre = $"✓ Employés : {r.Crees} créés, {r.MisAJour} mis à jour, {r.Ignored} ignorés";
+                    MessageBox.Show(
+                        $"Import CSV terminé.\n\nLignes : {r.LignesLues}\nCréés : {r.Crees}\n" +
+                        $"Mis à jour : {r.MisAJour}\nIgnorés : {r.Ignored}",
+                        "Employés",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Import employés", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+                return;
+            }
+        }
+
         try
         {
-            var r = EmployeCsvImportService.Importer(dlg.FileName);
+            var r = EmployeCsvImportService.Importer(dlg.FileName, creerSeulementSiAbsent: false);
             ChargerEmployes();
             ChargerPresenceJour();
             ChargerAccueil();
@@ -1511,15 +1587,22 @@ public class MainViewModel : ObservableObject
             if (conf != MessageBoxResult.Yes)
                 return;
 
+            // Échange atomique en mémoire ; enregistrement via « Enregistrer » sur la fiche
             var ancien = EmployeEdition.CodePinZk;
             autre.CodePinZk = string.IsNullOrWhiteSpace(ancien) ? null : ancien.Trim();
+            // Persister l’autre employé seulement avec le PIN courant en même temps
+            var courant = db.Employes.FirstOrDefault(e => e.Id == EmployeEdition.Id);
+            if (courant != null)
+                courant.CodePinZk = id;
             db.SaveChanges();
         }
 
         var maj = ClonerEmploye(EmployeEdition);
         maj.CodePinZk = id;
         EmployeEdition = maj;
-        StatutBarre = $"ID terminal {id} attribué — enregistrez la fiche";
+        StatutBarre = autre != null
+            ? $"ID {id} échangé et enregistré"
+            : $"ID terminal {id} attribué — enregistrez la fiche";
     }
 
     private void AssocierIdsTerminalAuto()
@@ -1675,7 +1758,9 @@ public class MainViewModel : ObservableObject
             if (nb > 0)
             {
                 var conf = MessageBox.Show(
-                    $"La base contient déjà {nb} employé(s).\n\nAjouter uniquement les matricules manquants depuis le fichier livré avec l'application ?",
+                    $"La base contient déjà {nb} employé(s).\n\n" +
+                    "Ajouter uniquement les matricules manquants ?\n\n" +
+                    "Les noms, salaires, taux, pointages et bulletins déjà saisis ne seront pas écrasés.",
                     "Recharger liste LT",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
@@ -1694,21 +1779,33 @@ public class MainViewModel : ObservableObject
                 return;
             }
 
+            // Toujours en mode « ajouter seulement » si la base n’est pas vide
             var r = EmployeCsvImportService.Importer(csv, creerSeulementSiAbsent: nb > 0);
+
+            // Salaires seed : uniquement pour les fiches encore sans salaire (jamais d’écrasement)
             var xlsx = FicheSalaireImportService.CheminSeedSalaireParDefaut();
             FicheSalaireImportResult? sal = null;
             if (xlsx != null)
-                sal = FicheSalaireImportService.Importer(xlsx);
+            {
+                sal = FicheSalaireImportService.Importer(
+                    xlsx,
+                    ecraserSalairesExistants: false,
+                    creerEmployesManquants: false);
+            }
 
             ChargerEmployes();
             ChargerPresenceJour();
             ChargerAccueil();
             ChargerModulePaie();
             StatutBarre = $"✓ Liste LT : +{r.Crees} employé(s)" +
-                          (sal != null ? $", salaires {sal.MisAJour}" : "");
+                          (sal != null ? $", salaires complétés {sal.MisAJour}" : "");
             MessageBox.Show(
-                $"Liste LT rechargée.\n\nCréés : {r.Crees}\nMis à jour : {r.MisAJour}" +
-                (sal != null ? $"\nSalaires : {sal.MisAJour} (créés fiche : {sal.Crees})" : ""),
+                $"Liste LT rechargée (données clients préservées).\n\n" +
+                $"Employés créés : {r.Crees}\nIgnorés (déjà présents) : {r.Ignored}" +
+                (sal != null
+                    ? $"\nSalaires complétés (vides) : {sal.MisAJour}\nSalaires conservés : {sal.Ignores}"
+                    : "") +
+                "\n\nPour remplacer des salaires volontairement : utilisez « Importer salaires ».",
                 "Employés LT",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1719,28 +1816,86 @@ public class MainViewModel : ObservableObject
         }
     }
 
+    private void AllerPeriodePaie(int deltaMois)
+    {
+        var b = deltaMois < 0
+            ? PeriodePaieLtService.PeriodePrecedente(AnneeRapport, MoisRapport)
+            : PeriodePaieLtService.PeriodeSuivante(AnneeRapport, MoisRapport);
+        MoisRapport = b.MoisPaiement;
+        AnneeRapport = b.AnneePaiement;
+        ChargerModulePaie();
+    }
+
+    private void AllerPeriodeCourante()
+    {
+        var b = PeriodePaieLtService.PeriodeCourante();
+        MoisRapport = b.MoisPaiement;
+        AnneeRapport = b.AnneePaiement;
+        ChargerModulePaie();
+    }
+
     private async Task GenererBulletinsMoisAsync()
     {
-        // Synchronisation pointeuse avant calcul réel
-        StatutBarre = "Synchronisation pointeuse avant bulletins…";
-        var (ok, err, nb) = await ZktecoSynchronisationService.TrySynchroniserAsync();
-        if (!ok)
+        var bornesCible = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+        if (DateTime.Today < bornesCible.Debut)
         {
-            var cont = MessageBox.Show(
-                $"Synchronisation impossible :\n{err}\n\nGénérer quand même avec les pointages déjà en base ?",
-                "Bulletins", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (cont != MessageBoxResult.Yes)
+            MessageBox.Show(
+                $"La période {MoisRapport:00}/{AnneeRapport} n’a pas encore commencé " +
+                $"({bornesCible.Debut:dd/MM/yyyy}).\nImpossible de générer des bulletins.",
+                "Bulletins", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Période déjà clôturée (anciennes périodes) : pas de sync — pointages déjà en base
+        var periodeClose = PeriodePaieLtService.EstCloturee(bornesCible);
+        var syncRecente = _derniereSyncUtc.HasValue
+            && (DateTime.UtcNow - _derniereSyncUtc.Value) < TimeSpan.FromMinutes(15);
+
+        if (!periodeClose && !syncRecente)
+        {
+            var choix = MessageBox.Show(
+                "Synchroniser la pointeuse avant de générer les bulletins ?\n\n" +
+                "Oui = sync puis calcul (peut prendre du temps)\n" +
+                "Non = calculer avec les pointages déjà en base\n" +
+                "Annuler = ne rien faire",
+                "Bulletins",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+            if (choix == MessageBoxResult.Cancel)
             {
-                StatutBarre = "Génération annulée — sync échouée";
+                StatutBarre = "Génération annulée";
                 return;
             }
+
+            if (choix == MessageBoxResult.Yes)
+            {
+                StatutBarre = "Synchronisation pointeuse avant bulletins…";
+                var (ok, err, nb) = await ZktecoSynchronisationService.TrySynchroniserAsync();
+                if (!ok)
+                {
+                    var cont = MessageBox.Show(
+                        $"Synchronisation impossible :\n{err}\n\nGénérer quand même avec les pointages déjà en base ?",
+                        "Bulletins", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (cont != MessageBoxResult.Yes)
+                    {
+                        StatutBarre = "Génération annulée — sync échouée";
+                        return;
+                    }
+                }
+                else
+                {
+                    StatutBarre = $"✓ Sync OK ({nb} nouveau(x)) — calcul des bulletins…";
+                    ChargerPresenceJour();
+                    ChargerAccueil();
+                }
+            }
+            else
+                StatutBarre = "Calcul des bulletins (sans sync)…";
         }
+        else if (periodeClose)
+            StatutBarre = $"Calcul bulletins période clôturée {MoisRapport:00}/{AnneeRapport}…";
         else
-        {
-            StatutBarre = $"✓ Sync OK ({nb} nouveau(x)) — calcul des bulletins…";
-            ChargerPresenceJour();
-            ChargerAccueil();
-        }
+            StatutBarre = "Calcul des bulletins (sync récente)…";
 
         var sansSalaire = 0;
         using (var db = new PresenceDbContext())
@@ -1756,18 +1911,70 @@ public class MainViewModel : ObservableObject
                 return;
         }
 
-        var bornes = PeriodePaieLtService.ObtenirBornes(AnneeRapport, MoisRapport);
+        int nbExistants;
+        using (var db = new PresenceDbContext())
+            nbExistants = db.Bulletins.Count(b => b.Annee == AnneeRapport && b.Mois == MoisRapport);
+        if (nbExistants > 0)
+        {
+            var okRemp = MessageBox.Show(
+                $"{nbExistants} bulletin(s) existent déjà pour {MoisRapport:00}/{AnneeRapport}.\n\n" +
+                "Les remplacer par un nouveau calcul ?",
+                "Bulletins", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (okRemp != MessageBoxResult.Yes)
+            {
+                StatutBarre = "Génération annulée — bulletins existants conservés";
+                return;
+            }
+        }
+
+        var bornes = bornesCible;
         var liste = CalculBulletinService.GenererMois(AnneeRapport, MoisRapport);
         BulletinsMois.Clear();
         foreach (var b in liste)
             BulletinsMois.Add(b);
         OnPropertyChanged(nameof(BulletinsResumeLibelle));
+        (ExporterTousBulletinsPdfCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (SupprimerTousBulletinsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         ChargerRapportMois();
         var situation = PeriodePaieLtService.LibelleSituation(bornes);
         StatutBarre = $"✓ {liste.Count} bulletin(s) réel(s) — {situation}";
         WindowsNotificationService.NotifierInfo(
             $"{liste.Count} bulletin(s) généré(s)\n{situation}",
             "Bulletins LT Présence");
+    }
+
+    private void SupprimerBulletinSelection()
+    {
+        if (BulletinSelectionne == null) return;
+        var nom = BulletinSelectionne.Employe?.NomComplet ?? BulletinSelectionne.Numero;
+        if (MessageBox.Show(
+                $"Supprimer le bulletin de {nom} ?\n\nVous pourrez le régénérer ensuite.",
+                "Supprimer bulletin", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        if (!CalculBulletinService.Supprimer(BulletinSelectionne.Id))
+        {
+            MessageBox.Show("Bulletin introuvable.", "Bulletins");
+            return;
+        }
+
+        BulletinSelectionne = null;
+        ChargerModulePaie();
+        StatutBarre = "✓ Bulletin supprimé";
+    }
+
+    private void SupprimerTousBulletinsMois()
+    {
+        if (BulletinsMois.Count == 0) return;
+        if (MessageBox.Show(
+                $"Supprimer les {BulletinsMois.Count} bulletin(s) de {MoisRapport:00}/{AnneeRapport} ?\n\nAction irréversible (régénération possible).",
+                "Supprimer tous les bulletins", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        var n = CalculBulletinService.SupprimerMois(AnneeRapport, MoisRapport);
+        BulletinSelectionne = null;
+        ChargerModulePaie();
+        StatutBarre = $"✓ {n} bulletin(s) supprimé(s)";
     }
 
     private void ExporterBulletinSelectionPdf()
@@ -1951,7 +2158,14 @@ public class MainViewModel : ObservableObject
         TauxPrimeAssiduite = s.TauxPrimeAssiduite,
         TauxJourMaladie = s.TauxJourMaladie,
         TauxJourFerie = s.TauxJourFerie,
-        TauxComplementTransport = s.TauxComplementTransport
+        TauxComplementTransport = s.TauxComplementTransport,
+        TauxHeureSup = s.TauxHeureSup,
+        TauxCongeCirconstance = s.TauxCongeCirconstance,
+        KmMensuel = s.KmMensuel,
+        JoursMaladieMois = s.JoursMaladieMois,
+        HeuresSupMois = s.HeuresSupMois,
+        JoursFeriesMois = s.JoursFeriesMois,
+        JoursCongeCirconstanceMois = s.JoursCongeCirconstanceMois
     };
 
     private static void AppliquerFicheEmploye(Employe cible, Employe source)
@@ -1972,6 +2186,13 @@ public class MainViewModel : ObservableObject
         cible.TauxJourMaladie = source.TauxJourMaladie;
         cible.TauxJourFerie = source.TauxJourFerie;
         cible.TauxComplementTransport = source.TauxComplementTransport;
+        cible.TauxHeureSup = source.TauxHeureSup;
+        cible.TauxCongeCirconstance = source.TauxCongeCirconstance;
+        cible.KmMensuel = source.KmMensuel;
+        cible.JoursMaladieMois = source.JoursMaladieMois;
+        cible.HeuresSupMois = source.HeuresSupMois;
+        cible.JoursFeriesMois = source.JoursFeriesMois;
+        cible.JoursCongeCirconstanceMois = source.JoursCongeCirconstanceMois;
     }
 
     private static void NormaliserMontantsPaie(Employe e)
@@ -1988,13 +2209,24 @@ public class MainViewModel : ObservableObject
         e.TauxJourMaladie = Pos(e.TauxJourMaladie);
         e.TauxJourFerie = Pos(e.TauxJourFerie);
         e.TauxComplementTransport = Pos(e.TauxComplementTransport);
+        e.TauxHeureSup = Pos(e.TauxHeureSup);
+        e.TauxCongeCirconstance = Pos(e.TauxCongeCirconstance);
+        e.KmMensuel = Pos(e.KmMensuel);
+        e.JoursMaladieMois = Pos(e.JoursMaladieMois);
+        e.HeuresSupMois = Pos(e.HeuresSupMois);
+        e.JoursFeriesMois = Pos(e.JoursFeriesMois);
+        e.JoursCongeCirconstanceMois = Pos(e.JoursCongeCirconstanceMois);
     }
 
     private void SupprimerEmploye()
     {
         if (EmployeSelectionne == null) return;
-        if (MessageBox.Show($"Supprimer {EmployeSelectionne.NomComplet} ?", "Confirmation",
-                MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+        if (MessageBox.Show(
+                $"Supprimer définitivement {EmployeSelectionne.NomComplet} ?\n\n" +
+                "Ses pointages, retenues et bulletins seront aussi effacés.",
+                "Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
             return;
 
         using var db = new PresenceDbContext();
@@ -2008,7 +2240,10 @@ public class MainViewModel : ObservableObject
         EmployeSelectionne = null;
         EmployeEdition = null;
         ChargerEmployes();
-        StatutBarre = "Employé supprimé";
+        ChargerPresenceJour();
+        ChargerAccueil();
+        ChargerModulePaie();
+        StatutBarre = "Employé supprimé (pointages / bulletins associés effacés)";
     }
 
     private void Pointer(PointageType type)

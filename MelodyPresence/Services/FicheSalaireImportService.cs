@@ -14,6 +14,7 @@ public sealed class FicheSalaireImportResult
     public int MisAJour { get; set; }
     public int Crees { get; set; }
     public int NonMatchés { get; set; }
+    public int Ignores { get; set; }
     public int LignesLues { get; set; }
     public List<string> Details { get; } = new();
 }
@@ -23,7 +24,14 @@ public sealed class FicheSalaireImportResult
 /// </summary>
 public static class FicheSalaireImportService
 {
-    public static FicheSalaireImportResult Importer(string cheminFichier)
+    /// <param name="ecraserSalairesExistants">
+    /// Si false, ne touche pas un employé qui a déjà un salaire / taux saisi (protège les données clients).
+    /// </param>
+    /// <param name="creerEmployesManquants">Si false, n’ajoute pas de fiche pour un nom Excel sans match.</param>
+    public static FicheSalaireImportResult Importer(
+        string cheminFichier,
+        bool ecraserSalairesExistants = true,
+        bool creerEmployesManquants = true)
     {
         var result = new FicheSalaireImportResult();
         if (!File.Exists(cheminFichier))
@@ -80,6 +88,12 @@ public static class FicheSalaireImportService
             var cree = false;
             if (match == null)
             {
+                if (!creerEmployesManquants)
+                {
+                    result.NonMatchés++;
+                    continue;
+                }
+
                 // Installation neuve / liste vide : créer l'employé depuis la fiche salaire
                 var (nom, prenom) = DecouperNomExcel(nomExcel);
                 var matricule = GenererMatriculeTemporaire(nom, prenom, employes);
@@ -98,6 +112,16 @@ public static class FicheSalaireImportService
             }
 
             used.Add(match.Id);
+
+            // Ne pas écraser les montants déjà saisis par le client
+            var aDejaSalaire = match.SalaireMensuel > 0 || match.TauxSalaireBase > 0;
+            if (!ecraserSalairesExistants && aDejaSalaire && !cree)
+            {
+                result.Ignores++;
+                result.Details.Add($"— {match.Matricule} conservé (salaire client)");
+                continue;
+            }
+
             match.SalaireMensuel = salaire;
             match.TauxSalaireBase = baseJr > 0
                 ? baseJr

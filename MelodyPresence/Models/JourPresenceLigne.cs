@@ -26,15 +26,17 @@ public class JourPresenceLigne
         "En cours" => "En cours",
         "Retard" => "Retard",
         "Non pointé" => "Non pointé",
+        "Chômé payé" => "Chômé payé",
+        "Repos" => "Repos",
         _ => "Absent"
     };
 
     public string StatutIcone => Statut switch
     {
-        "Présent" or "Parti" => "●",
+        "Présent" or "Parti" or "Chômé payé" => "●",
         "En cours" => "●",
         "Retard" => "●",
-        "Non pointé" => "○",
+        "Non pointé" or "Repos" => "○",
         _ => "●"
     };
 

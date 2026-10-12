@@ -130,8 +130,12 @@ public class PointageService
         var employes = db.Employes.AsNoTracking().Where(e => e.Actif).ToList();
         var pinMap = ConstruireMapEmployes(employes);
 
+        // Compteurs / dédup en mémoire : Any/Count SQL ne voient pas les Add du même batch
+        var minutesVues = new HashSet<string>(StringComparer.Ordinal);
+        var countsJour = new Dictionary<(int Emp, DateTime Jour), int>();
+
         var ajoutes = 0;
-        foreach (var (codePin, horodatage) in logs)
+        foreach (var (codePin, horodatage) in logs.OrderBy(x => x.Horodatage))
         {
             if (!ResoudreEmployeId(pinMap, codePin, out var employeId))
                 continue;
@@ -141,14 +145,30 @@ public class PointageService
                 : DateTime.SpecifyKind(horodatage, DateTimeKind.Local);
 
             var debutMin = new DateTime(local.Year, local.Month, local.Day, local.Hour, local.Minute, 0);
+            var cleMin = $"{employeId}|{debutMin:O}";
+            if (!minutesVues.Add(cleMin))
+                continue;
+
             var finMin = debutMin.AddMinutes(1);
-            var existe = db.Pointages.Any(p =>
+            var existeDb = db.Pointages.Any(p =>
                 p.EmployeId == employeId &&
                 p.Source == PointageSource.Terminal &&
                 p.Horodatage >= debutMin && p.Horodatage < finMin);
-            if (existe) continue;
+            if (existeDb) continue;
 
-            var type = DeterminerType(db, employeId, local);
+            var cleJour = (employeId, local.Date);
+            if (!countsJour.TryGetValue(cleJour, out var count))
+            {
+                var jour = local.Date;
+                var lendemain = jour.AddDays(1);
+                count = db.Pointages.Count(p =>
+                    p.EmployeId == employeId && p.Horodatage >= jour && p.Horodatage < lendemain);
+                countsJour[cleJour] = count;
+            }
+
+            var type = count % 2 == 0 ? PointageType.Entree : PointageType.Sortie;
+            countsJour[cleJour] = count + 1;
+
             db.Pointages.Add(new Pointage
             {
                 EmployeId = employeId,

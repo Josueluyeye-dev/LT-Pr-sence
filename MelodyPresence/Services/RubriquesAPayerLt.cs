@@ -39,7 +39,8 @@ public static class RubriquesAPayerLt
     ];
 
     /// <summary>
-    /// Complète les taux manquants à partir du salaire mensuel (÷ 26).
+    /// Complète le taux journalier de base si manquant (mensuel ÷ 26).
+    /// Ne force plus d’indemnité KM (évite d’écrire 1,25 en base à chaque bulletin).
     /// </summary>
     public static void CompleterTauxSiBesoin(Employe emp)
     {
@@ -49,36 +50,66 @@ public static class RubriquesAPayerLt
             emp.TauxSalaireBase = decimal.Round(emp.SalaireMensuel / JoursReference, 2, MidpointRounding.AwayFromZero);
     }
 
-    /// <param name="joursPresents">Jours réellement pointés (transport).</param>
-    /// <param name="joursOuvresEcoules">Jours ouvrés de la période jusqu’à aujourd’hui (prorata).</param>
+    /// <param name="joursPointes">Jours réellement pointés (lun–ven) → rubrique Transport uniquement.</param>
+    /// <param name="joursOuvresEcoules">Jours payables Mon–Sam écoulés (prorata ; samedi chômé payé inclus).</param>
     /// <param name="periodeClose">Si true, Temps fixes = 26 (modèle LT clôturé).</param>
+    /// <param name="km">Km saisis pour la période ; sinon <see cref="Employe.KmMensuel"/>.</param>
     public static List<LigneBulletinAPayer> Construire(
         Employe emp,
-        int joursPresents,
+        int joursPointes,
         bool periodeClose = false,
         int joursOuvresEcoules = 0,
-        decimal km = 0m)
+        decimal? km = null)
     {
         CompleterTauxSiBesoin(emp);
 
-        var presents = Math.Max(0, joursPresents);
+        var pointes = Math.Max(0, joursPointes);
         var ouvrés = Math.Max(0, joursOuvresEcoules);
         if (ouvrés <= 0 && !periodeClose)
-            ouvrés = presents;
+            ouvrés = pointes;
 
-        // Période close : 26 j fixes. En cours : prorata jours ouvrés écoulés (pas 0 si pas encore pointé).
+        // Période close : 26 j fixes. En cours : prorata jours payables écoulés (sam. inclus).
         var joursFixes = periodeClose
             ? JoursReference
-            : (ouvrés > 0 ? ouvrés : presents);
-        var joursTransport = presents;
+            : (ouvrés > 0 ? ouvrés : pointes);
+        // Jamais forcer 26 j sur une période pas commencée / sans jours écoulés
+        if (joursFixes <= 0 && periodeClose && emp.TauxSalaireBase > 0)
+            joursFixes = JoursReference;
+
+        // Transport = jours pointés seulement (pas le samedi chômé payé)
+        var joursTransport = pointes;
 
         var tauxBase = emp.TauxSalaireBase;
         var tauxMaladie = emp.TauxJourMaladie > 0
             ? emp.TauxJourMaladie
-            : decimal.Round(tauxBase * 2m / 3m, 2, MidpointRounding.AwayFromZero);
+            : (tauxBase > 0 ? decimal.Round(tauxBase * 2m / 3m, 2, MidpointRounding.AwayFromZero) : 0m);
         var tauxFerie = emp.TauxJourFerie > 0
             ? emp.TauxJourFerie
-            : decimal.Round(tauxBase + emp.TauxAnciennete + emp.TauxTransport, 2, MidpointRounding.AwayFromZero);
+            : (tauxBase > 0
+                ? decimal.Round(tauxBase + emp.TauxAnciennete + emp.TauxTransport, 2, MidpointRounding.AwayFromZero)
+                : 0m);
+        var tauxHeureSup = emp.TauxHeureSup > 0
+            ? emp.TauxHeureSup
+            : (tauxBase > 0 ? decimal.Round(tauxBase / 8m, 2, MidpointRounding.AwayFromZero) : 0m);
+        var tauxConge = emp.TauxCongeCirconstance > 0 ? emp.TauxCongeCirconstance : tauxBase;
+
+        // KM : taux par défaut uniquement en mémoire si des km sont saisis
+        var kmEffectif = km ?? emp.KmMensuel;
+        var tauxKm = emp.TauxIndemniteKm;
+        if (kmEffectif > 0 && tauxKm <= 0)
+            tauxKm = 1.25m;
+
+        var joursMaladie = emp.JoursMaladieMois;
+        var heuresSup = emp.HeuresSupMois;
+        var joursFeries = emp.JoursFeriesMois;
+        var joursConge = emp.JoursCongeCirconstanceMois;
+
+        // Rubriques journalières / forfait : Temps = joursFixes dès qu’un taux est renseigné
+        var tempsAnciennete = emp.TauxAnciennete > 0 ? Math.Max(joursFixes, 1) : 0m;
+        var tempsPrime = emp.TauxPrimeAssiduite > 0 ? Math.Max(joursFixes, 1) : 0m;
+        var tempsComplement = emp.TauxComplementTransport > 0 ? Math.Max(joursFixes, 1) : 0m;
+        var tempsLogement = emp.TauxLogement > 0 ? Math.Max(joursFixes, 1) : 0m;
+        var tempsAlloc = emp.TauxAllocFamiliales > 0 ? Math.Max(joursFixes, 1) : 0m;
 
         LigneBulletinAPayer Ligne(string lib, decimal temps, decimal taux) =>
             new()
@@ -92,17 +123,17 @@ public static class RubriquesAPayerLt
         return
         [
             Ligne(SalaireBase, joursFixes, tauxBase),
-            Ligne(Anciennete, joursFixes, emp.TauxAnciennete),
+            Ligne(Anciennete, tempsAnciennete, emp.TauxAnciennete),
             Ligne(Transport, joursTransport, emp.TauxTransport),
-            Ligne(JourMaladie, 0, tauxMaladie),
-            Ligne(HeureSup, 0, 0),
-            Ligne(JourFeriePreste, 0, tauxFerie),
-            Ligne(PrimeAssiduite, 0, emp.TauxPrimeAssiduite),
-            Ligne(IndemniteKm, km, emp.TauxIndemniteKm > 0 ? emp.TauxIndemniteKm : 1.25m),
-            Ligne(CongeCirconstance, 0, 0),
-            Ligne(ComplementTransport, joursFixes, emp.TauxComplementTransport),
-            Ligne(IndemniteLogement, joursFixes, emp.TauxLogement),
-            Ligne(AllocationsFamiliales, joursFixes, emp.TauxAllocFamiliales)
+            Ligne(JourMaladie, joursMaladie, tauxMaladie),
+            Ligne(HeureSup, heuresSup, tauxHeureSup),
+            Ligne(JourFeriePreste, joursFeries, tauxFerie),
+            Ligne(PrimeAssiduite, tempsPrime, emp.TauxPrimeAssiduite),
+            Ligne(IndemniteKm, kmEffectif, tauxKm),
+            Ligne(CongeCirconstance, joursConge, tauxConge),
+            Ligne(ComplementTransport, tempsComplement, emp.TauxComplementTransport),
+            Ligne(IndemniteLogement, tempsLogement, emp.TauxLogement),
+            Ligne(AllocationsFamiliales, tempsAlloc, emp.TauxAllocFamiliales)
         ];
     }
 }

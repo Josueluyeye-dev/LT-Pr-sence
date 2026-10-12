@@ -59,7 +59,16 @@ public static class BulletinPdfService
         var cult = CultureInfo.GetCultureInfo("fr-FR");
         var lignes = b.LignesAPayer;
         if (lignes.Count == 0 && emp != null)
-            lignes = RubriquesAPayerLt.Construire(emp, b.JoursPresents);
+        {
+            // Repli cohérent avec le calcul stocké (période close + prorata)
+            var bornes = PeriodePaieLtService.ObtenirBornes(b.Annee, b.Mois);
+            var close = PeriodePaieLtService.EstCloturee(bornes, b.DateGeneration.Date);
+            var fin = PeriodePaieLtService.FinEffective(bornes, b.DateGeneration.Date);
+            var ouvrés = fin >= bornes.Debut
+                ? PeriodePaieLtService.CompterJoursOuvrables(bornes.Debut, fin)
+                : 0;
+            lignes = RubriquesAPayerLt.Construire(emp, b.JoursPresents, close, ouvrés);
+        }
 
         container.Column(col =>
         {

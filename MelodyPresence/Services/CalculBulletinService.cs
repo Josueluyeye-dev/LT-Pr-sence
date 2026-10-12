@@ -18,10 +18,13 @@ public static class CalculBulletinService
         int nbRetards,
         bool periodeClose = false,
         int joursOuvresEcoules = 0,
-        IReadOnlyList<LigneBulletinRetenue>? retenuesSaisies = null)
+        IReadOnlyList<LigneBulletinRetenue>? retenuesSaisies = null,
+        int? joursPointesTransport = null)
     {
         RubriquesAPayerLt.CompleterTauxSiBesoin(employe);
-        var lignes = RubriquesAPayerLt.Construire(employe, joursPresents, periodeClose, joursOuvresEcoules);
+        // Transport = jours pointés (pas les samedis chômés payés)
+        var joursTransport = joursPointesTransport ?? joursPresents;
+        var lignes = RubriquesAPayerLt.Construire(employe, joursTransport, periodeClose, joursOuvresEcoules);
         var totalAPayer = decimal.Round(lignes.Sum(l => l.Montant), 2, MidpointRounding.AwayFromZero);
 
         var ligneBase = lignes.FirstOrDefault(l => l.Libelle == RubriquesAPayerLt.SalaireBase);
@@ -108,13 +111,21 @@ public static class CalculBulletinService
                     Montant = r.Montant
                 }).ToList());
 
+        var idsActifs = employes.Select(e => e.Id).ToHashSet();
+        // Bulletins d’employés inactifs / supprimés : retirer à la régénération
+        var orphelins = db.Bulletins
+            .Where(b => b.Annee == annee && b.Mois == mois && !idsActifs.Contains(b.EmployeId))
+            .ToList();
+        if (orphelins.Count > 0)
+            db.Bulletins.RemoveRange(orphelins);
+
         foreach (var emp in employes)
         {
             parId.TryGetValue(emp.Id, out var r);
             retenues.TryGetValue(emp.Id, out var retEmp);
             var bulletin = Calculer(
                 emp, annee, mois, r.JoursPresents, r.Absences, r.Retards,
-                periodeClose, joursOuvres, retEmp);
+                periodeClose, joursOuvres, retEmp, r.JoursPointes);
             bulletin.Employe = null;
 
             var existant = db.Bulletins.FirstOrDefault(b =>
@@ -159,6 +170,26 @@ public static class CalculBulletinService
             .Where(b => b.Annee == annee && b.Mois == mois)
             .OrderBy(b => b.Employe!.Nom)
             .ToList();
+    }
+
+    public static bool Supprimer(int bulletinId)
+    {
+        using var db = new PresenceDbContext();
+        var b = db.Bulletins.FirstOrDefault(x => x.Id == bulletinId);
+        if (b == null) return false;
+        db.Bulletins.Remove(b);
+        db.SaveChanges();
+        return true;
+    }
+
+    public static int SupprimerMois(int annee, int mois)
+    {
+        using var db = new PresenceDbContext();
+        var liste = db.Bulletins.Where(b => b.Annee == annee && b.Mois == mois).ToList();
+        if (liste.Count == 0) return 0;
+        db.Bulletins.RemoveRange(liste);
+        db.SaveChanges();
+        return liste.Count;
     }
 
     /// <summary>Remplit TauxSalaireBase = SalaireMensuel÷26 si manquant.</summary>

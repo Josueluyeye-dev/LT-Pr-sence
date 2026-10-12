@@ -74,6 +74,37 @@
                                   Opacity="0.10" Color="#FF0F172A"/>
         <effects:DropShadowEffect x:Key="GlassShadowSoft" BlurRadius="18" ShadowDepth="3" Direction="270"
                                   Opacity="0.07" Color="#FF0F172A"/>
+        <effects:DropShadowEffect x:Key="KpiShadow" BlurRadius="22" ShadowDepth="4" Direction="270"
+                                  Opacity="0.14" Color="#FF0F172A"/>
+        <effects:DropShadowEffect x:Key="KpiShadowHover" BlurRadius="28" ShadowDepth="6" Direction="270"
+                                  Opacity="0.20" Color="#FFE30613"/>
+
+        <!-- Fonds KPI teintés (profondeur sans sparklines) -->
+        <LinearGradientBrush x:Key="BrushKpiNeutral" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+            <GradientStop Color="#FFF1F5F9" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrushKpiSuccess" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+            <GradientStop Color="#FFECFDF5" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrushKpiWarning" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+            <GradientStop Color="#FFFFFBEB" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrushKpiDanger" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+            <GradientStop Color="#FFFEF2F2" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrushKpiInfo" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+            <GradientStop Color="#FFEFF6FF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrushDashHeader" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#FFE30613" Offset="0"/>
+            <GradientStop Color="#FF7F1D1D" Offset="0.55"/>
+            <GradientStop Color="#FF111827" Offset="1"/>
+        </LinearGradientBrush>
 
         <!-- Bannières / toasts / alertes — dégradé rouge → noir -->
         <Style x:Key="MessageBanner" TargetType="Border">
@@ -127,17 +158,20 @@
         </Style>
 
         <Style x:Key="StatCard" TargetType="Border" BasedOn="{StaticResource Card}">
-            <Setter Property="Background" Value="{StaticResource BrushBgStatCard}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BrushStroke}"/>
+            <Setter Property="Background" Value="{StaticResource BrushKpiNeutral}"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="14"/>
-            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,12,0"/>
-            <Setter Property="MinHeight" Value="96"/>
+            <Setter Property="MinHeight" Value="128"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Effect" Value="{StaticResource KpiShadow}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource BrushHoverGradient}"/>
-                    <Setter Property="BorderBrush" Value="#AAE30613"/>
+                    <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                    <Setter Property="Effect" Value="{StaticResource KpiShadowHover}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>

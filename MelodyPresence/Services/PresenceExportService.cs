@@ -141,7 +141,7 @@ public static class PresenceExportService
     {
         var logo = ChargerLogo();
         var effectif = lignes.Count;
-        var presents = lignes.Count(l => l.Statut is "Présent" or "Parti" or "En cours" or "Retard");
+        var presents = lignes.Count(l => l.Statut is "Présent" or "Parti" or "En cours" or "Retard" or "Chômé payé");
         var retards = lignes.Count(l => l.EstEnRetard || l.Statut == "Retard");
         var absents = lignes.Count(l => l.Statut is "Absent" or "Non pointé");
         var culture = CultureInfo.GetCultureInfo("fr-FR");

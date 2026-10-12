@@ -42,25 +42,31 @@ internal static class Program
                 return 1;
             }
 
-            zk.EnableDevice(machineId, false);
             try
             {
-                zk.ReadGeneralLogData(machineId);
-                LireSsr(zk, machineId, rows);
-                if (rows.Count == 0)
+                zk.EnableDevice(machineId, false);
+                try
                 {
-                    zk.ReadAllGLogData(machineId);
-                    LireLegacy(zk, machineId, rows);
+                    zk.ReadGeneralLogData(machineId);
+                    LireSsr(zk, machineId, rows);
+                    if (rows.Count == 0)
+                    {
+                        zk.ReadAllGLogData(machineId);
+                        LireLegacy(zk, machineId, rows);
+                    }
                 }
+                finally
+                {
+                    zk.EnableDevice(machineId, true);
+                }
+
+                Console.Out.WriteLine(JsonSerializer.Serialize(rows));
+                return 0;
             }
             finally
             {
-                zk.EnableDevice(machineId, true);
+                try { zk.Disconnect(); } catch { /* ignore */ }
             }
-
-            zk.Disconnect();
-            Console.Out.WriteLine(JsonSerializer.Serialize(rows));
-            return 0;
         }
         catch (Exception ex)
         {

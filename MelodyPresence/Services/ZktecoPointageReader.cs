@@ -11,49 +11,20 @@ namespace MelodyPresence.Services;
 public static class ZktecoPointageReader
 {
     private const string DossierWorkerRelatif = "ZktecoPullWorker";
-    private const int TimeoutMs = 120_000;
-    private const int TcpProbeMs = 12_000;
+    private const int TimeoutMs = 90_000;
+    /// <summary>Sonde TCP courte : échec réseau rapide.</summary>
+    private const int TcpProbeMs = 3_000;
 
     public static IReadOnlyList<(string CodePin, DateTime Horodatage)> Lire(string ip, int port, int machineId,
         int commPassword = 0)
     {
-        var exePath = ResoudreCheminExeWorker()
-            ?? throw new FileNotFoundException(
-                "ZktecoPullWorker.exe introuvable. Recompilez la solution LT Services Présence.");
+        var (stdout, stderr, exit) = LancerWorker(
+            ip, port, machineId, commPassword, usersMode: false);
 
-        VerifierPortTcp(ip.Trim(), port);
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = exePath,
-            WorkingDirectory = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-        psi.ArgumentList.Add(ip.Trim());
-        psi.ArgumentList.Add(port.ToString(CultureInfo.InvariantCulture));
-        psi.ArgumentList.Add(machineId.ToString(CultureInfo.InvariantCulture));
-        psi.ArgumentList.Add(commPassword.ToString(CultureInfo.InvariantCulture));
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-
-        if (!process.WaitForExit(TimeoutMs))
-        {
-            try { process.Kill(true); } catch { /* ignore */ }
-            throw new TimeoutException("Lecture ZKTeco trop longue.");
-        }
-
-        if (process.ExitCode == 2)
+        if (exit == 2)
             throw new InvalidOperationException("Arguments ZKTeco invalides.");
 
-        if (process.ExitCode != 0)
+        if (exit != 0)
         {
             var msg = string.IsNullOrWhiteSpace(stderr) ? "Échec lecture ZKTeco." : stderr.Trim();
             if (msg.StartsWith("CONN_FAIL", StringComparison.OrdinalIgnoreCase))
@@ -98,40 +69,10 @@ public static class ZktecoPointageReader
     /// <summary>Liste des utilisateurs enrôlés sur le terminal (ID = CodePin / enroll number).</summary>
     public static IReadOnlyList<ZkUserDto> LireUtilisateurs(string ip, int port, int machineId, int commPassword = 0)
     {
-        var exePath = ResoudreCheminExeWorker()
-            ?? throw new FileNotFoundException(
-                "ZktecoPullWorker.exe introuvable. Recompilez la solution LT Services Présence.");
+        var (stdout, stderr, exit) = LancerWorker(
+            ip, port, machineId, commPassword, usersMode: true);
 
-        VerifierPortTcp(ip.Trim(), port);
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = exePath,
-            WorkingDirectory = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-        psi.ArgumentList.Add("--users");
-        psi.ArgumentList.Add(ip.Trim());
-        psi.ArgumentList.Add(port.ToString(CultureInfo.InvariantCulture));
-        psi.ArgumentList.Add(machineId.ToString(CultureInfo.InvariantCulture));
-        psi.ArgumentList.Add(commPassword.ToString(CultureInfo.InvariantCulture));
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        if (!process.WaitForExit(TimeoutMs))
-        {
-            try { process.Kill(true); } catch { /* ignore */ }
-            throw new TimeoutException("Lecture des utilisateurs ZKTeco trop longue.");
-        }
-
-        if (process.ExitCode != 0)
+        if (exit != 0)
         {
             var msg = string.IsNullOrWhiteSpace(stderr) ? "Échec lecture utilisateurs terminal." : stderr.Trim();
             throw new InvalidOperationException(msg);
@@ -153,6 +94,53 @@ public static class ZktecoPointageReader
                 Actif = x.e
             })
             .ToList();
+    }
+
+    private static (string Stdout, string Stderr, int ExitCode) LancerWorker(
+        string ip, int port, int machineId, int commPassword, bool usersMode)
+    {
+        var exePath = ResoudreCheminExeWorker()
+            ?? throw new FileNotFoundException(
+                "ZktecoPullWorker.exe introuvable. Recompilez la solution LT Services Présence.");
+
+        VerifierPortTcp(ip.Trim(), port);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = exePath,
+            WorkingDirectory = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
+        };
+        if (usersMode)
+            psi.ArgumentList.Add("--users");
+        psi.ArgumentList.Add(ip.Trim());
+        psi.ArgumentList.Add(port.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(machineId.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(commPassword.ToString(CultureInfo.InvariantCulture));
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        // Lecture async + WaitForExit avec timeout (évite blocage infini sur ReadToEnd)
+        var outTask = process.StandardOutput.ReadToEndAsync();
+        var errTask = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(TimeoutMs))
+        {
+            try { process.Kill(true); } catch { /* ignore */ }
+            throw new TimeoutException(usersMode
+                ? "Lecture des utilisateurs ZKTeco trop longue."
+                : "Lecture ZKTeco trop longue.");
+        }
+
+        if (!Task.WaitAll(new Task[] { outTask, errTask }, 10_000))
+            throw new TimeoutException("Lecture de la sortie ZKTeco trop longue.");
+
+        return (outTask.Result, errTask.Result, process.ExitCode);
     }
 
     private static string? ResoudreCheminExeWorker()

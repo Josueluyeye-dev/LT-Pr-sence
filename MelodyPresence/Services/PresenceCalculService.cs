@@ -47,10 +47,20 @@ public static class PresenceCalculService
         }
 
         string statut;
-        if (liste.Count == 0)
+        // Samedi chômé payé : jamais d’absence ni de retard sanctionnable
+        if (PeriodePaieLtService.EstSamediChomePaye(date))
         {
-            // Avant la tolérance du jour courant : "Non pointé" (pas encore Absent).
-            if (date.Date == DateTime.Today && DateTime.Now.TimeOfDay < limite)
+            estRetard = false;
+            minutesRetard = 0;
+            statut = liste.Count == 0
+                ? "Chômé payé"
+                : derniere.HasValue ? "Parti" : "En cours";
+        }
+        else if (liste.Count == 0)
+        {
+            if (PeriodePaieLtService.EstDimanche(date))
+                statut = "Repos";
+            else if (date.Date == DateTime.Today && DateTime.Now.TimeOfDay < limite)
                 statut = "Non pointé";
             else
                 statut = "Absent";
@@ -122,7 +132,8 @@ public static class PresenceCalculService
 
         for (var d = debut; d < finExclue; d = d.AddDays(1))
         {
-            if (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            // Dimanche exclu du décompte ; samedi inclus (chômé payé).
+            if (PeriodePaieLtService.EstDimanche(d))
                 continue;
             result.AddRange(CalculerJourPourTous(actifs, pts, d, heureDebut, heureLimite));
         }
@@ -130,7 +141,11 @@ public static class PresenceCalculService
         return result;
     }
 
-    public static IReadOnlyList<(Employe Employe, int JoursPresents, double HeuresTotales, int Absences, int Retards)> ResumeMensuel(
+    /// <summary>
+    /// Résumé mensuel. <c>JoursPresents</c> = pointés + samedis chômés payés (affichage).
+    /// <c>JoursPointes</c> = uniquement jours avec présence réelle (transport).
+    /// </summary>
+    public static IReadOnlyList<(Employe Employe, int JoursPresents, int JoursPointes, double HeuresTotales, int Absences, int Retards)> ResumeMensuel(
         IEnumerable<Employe> employes,
         IEnumerable<Pointage> pointages,
         int annee,
@@ -151,11 +166,14 @@ public static class PresenceCalculService
                     Matricule = first.Matricule,
                     Nom = first.NomComplet
                 };
+                var pointes = g.Count(x => x.Statut is "Présent" or "Parti" or "En cours" or "Retard");
+                var chomes = g.Count(x => x.Statut == "Chômé payé");
                 return (
                     emp,
-                    g.Count(x => x.Statut is "Présent" or "Parti" or "En cours" or "Retard"),
+                    pointes + chomes,
+                    pointes,
                     Math.Round(g.Sum(x => x.Heures), 2),
-                    // « Non pointé » (journée en cours) n’est pas une absence
+                    // « Non pointé » / repos / chômé payé ne sont pas des absences
                     g.Count(x => x.Statut == "Absent"),
                     g.Count(x => x.EstEnRetard)
                 );

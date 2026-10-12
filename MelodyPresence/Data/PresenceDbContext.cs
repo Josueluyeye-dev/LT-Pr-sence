@@ -51,6 +51,13 @@ public class PresenceDbContext : DbContext
             e.Property(x => x.TauxJourMaladie).HasPrecision(18, 4);
             e.Property(x => x.TauxJourFerie).HasPrecision(18, 4);
             e.Property(x => x.TauxComplementTransport).HasPrecision(18, 4);
+            e.Property(x => x.TauxHeureSup).HasPrecision(18, 4);
+            e.Property(x => x.TauxCongeCirconstance).HasPrecision(18, 4);
+            e.Property(x => x.KmMensuel).HasPrecision(18, 2);
+            e.Property(x => x.JoursMaladieMois).HasPrecision(18, 2);
+            e.Property(x => x.HeuresSupMois).HasPrecision(18, 2);
+            e.Property(x => x.JoursFeriesMois).HasPrecision(18, 2);
+            e.Property(x => x.JoursCongeCirconstanceMois).HasPrecision(18, 2);
         });
 
         modelBuilder.Entity<Pointage>(e =>
@@ -131,6 +138,13 @@ public class PresenceDbContext : DbContext
         AjouterColonneSiAbsente(db, "Employes", "TauxJourMaladie", "REAL NOT NULL DEFAULT 0");
         AjouterColonneSiAbsente(db, "Employes", "TauxJourFerie", "REAL NOT NULL DEFAULT 0");
         AjouterColonneSiAbsente(db, "Employes", "TauxComplementTransport", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "TauxHeureSup", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "TauxCongeCirconstance", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "KmMensuel", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "JoursMaladieMois", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "HeuresSupMois", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "JoursFeriesMois", "REAL NOT NULL DEFAULT 0");
+        AjouterColonneSiAbsente(db, "Employes", "JoursCongeCirconstanceMois", "REAL NOT NULL DEFAULT 0");
         // EnsureCreated ne crée Bulletins que sur DB neuve — table dédiée si absente
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS Bulletins (
@@ -268,12 +282,11 @@ public class PresenceDbContext : DbContext
             changed = true;
         }
 
-        // Comme Melody Paie : sync auto dès qu'une IP terminal est connue
-        if (!p.ZkSyncActif && !string.IsNullOrWhiteSpace(p.ZkTerminalIp))
+        // Ne pas réactiver la sync si l’utilisateur l’a désactivée volontairement.
+        // Seulement normaliser l’intervalle si sync déjà active.
+        if (p.ZkSyncActif && p.ZkIntervalleSecondes <= 0)
         {
-            p.ZkSyncActif = true;
-            if (p.ZkIntervalleSecondes <= 0)
-                p.ZkIntervalleSecondes = 60;
+            p.ZkIntervalleSecondes = 60;
             changed = true;
         }
 
@@ -294,12 +307,15 @@ public class PresenceDbContext : DbContext
         if (csv != null)
             Services.EmployeCsvImportService.Importer(csv, creerSeulementSiAbsent: true);
 
-        // Salaires / taux depuis la fiche Excel seed (crée aussi les manquants)
-        if (!db.Employes.Any() || db.Employes.All(e => e.SalaireMensuel <= 0))
+        // Salaires seed uniquement si personne n’a encore de salaire (jamais d’écrasement client)
+        if (!db.Employes.Any() || db.Employes.All(e => e.SalaireMensuel <= 0 && e.TauxSalaireBase <= 0))
         {
             var xlsx = Services.FicheSalaireImportService.CheminSeedSalaireParDefaut();
             if (xlsx != null)
-                Services.FicheSalaireImportService.Importer(xlsx);
+                Services.FicheSalaireImportService.Importer(
+                    xlsx,
+                    ecraserSalairesExistants: false,
+                    creerEmployesManquants: true);
         }
     }
 

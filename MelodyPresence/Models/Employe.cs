@@ -12,7 +12,7 @@ public class Employe
     /// <summary>Salaire mensuel de base (devise entreprise, ex. USD / CDF).</summary>
     public decimal SalaireMensuel { get; set; }
 
-    /// <summary>Taux journaliers section « A PAYER » (bulletin LT).</summary>
+    /// <summary>Taux journaliers / unitaires section « A PAYER » (bulletin LT).</summary>
     public decimal TauxSalaireBase { get; set; }
     public decimal TauxAnciennete { get; set; }
     public decimal TauxTransport { get; set; }
@@ -23,6 +23,15 @@ public class Employe
     public decimal TauxJourMaladie { get; set; }
     public decimal TauxJourFerie { get; set; }
     public decimal TauxComplementTransport { get; set; }
+    public decimal TauxHeureSup { get; set; }
+    public decimal TauxCongeCirconstance { get; set; }
+
+    /// <summary>Quantités mensuelles pour les rubriques à temps variable.</summary>
+    public decimal KmMensuel { get; set; }
+    public decimal JoursMaladieMois { get; set; }
+    public decimal HeuresSupMois { get; set; }
+    public decimal JoursFeriesMois { get; set; }
+    public decimal JoursCongeCirconstanceMois { get; set; }
 
     public string NomComplet => string.IsNullOrWhiteSpace(Prenom) ? Nom : $"{Nom} {Prenom}".Trim();
 

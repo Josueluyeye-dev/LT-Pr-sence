@@ -17,7 +17,7 @@ public class RubriquesAPayerLtTests
     public void En_cours_prorata_jours_ouvres_meme_sans_pointage()
     {
         var emp = new Employe { SalaireMensuel = 260000m }; // → taux 10000
-        var lignes = RubriquesAPayerLt.Construire(emp, joursPresents: 0, periodeClose: false, joursOuvresEcoules: 9);
+        var lignes = RubriquesAPayerLt.Construire(emp, joursPointes: 0, periodeClose: false, joursOuvresEcoules: 9);
         var baseL = lignes.First(l => l.Libelle == RubriquesAPayerLt.SalaireBase);
         Assert.Equal(9m, baseL.Temps);
         Assert.Equal(10000m, baseL.Taux);
@@ -29,7 +29,7 @@ public class RubriquesAPayerLtTests
     public void Periode_close_utilise_26_jours_fixes()
     {
         var emp = new Employe { TauxSalaireBase = 8.90m, TauxTransport = 2.40m };
-        var lignes = RubriquesAPayerLt.Construire(emp, joursPresents: 24, periodeClose: true, joursOuvresEcoules: 22);
+        var lignes = RubriquesAPayerLt.Construire(emp, joursPointes: 24, periodeClose: true, joursOuvresEcoules: 22);
         Assert.Equal(26m, lignes.First(l => l.Libelle == RubriquesAPayerLt.SalaireBase).Temps);
         Assert.Equal(24m, lignes.First(l => l.Libelle == RubriquesAPayerLt.Transport).Temps);
     }
@@ -59,6 +59,6 @@ public class PeriodePaieRealtimeTests
     {
         var b = PeriodePaieLtService.ObtenirBornes(2026, 10);
         Assert.True(PeriodePaieLtService.EstCloturee(b, new DateTime(2026, 10, 24)));
-        Assert.Equal(b.Fin, PeriodePaieLtService.FinEffective(b, new DateTime(2026, 10, 30)));
+        Assert.Equal(new DateTime(2026, 10, 23), PeriodePaieLtService.FinEffective(b, new DateTime(2026, 10, 30)));
     }
 }
